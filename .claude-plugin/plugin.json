@@ -1,0 +1,9 @@
+{
+  "name": "skillport",
+  "version": "0.1.0",
+  "description": "One skill library. Every AI tool.",
+  "author": {
+    "name": "eriic-builds"
+  },
+  "repository": "https://github.com/eriic-builds/skillport"
+}

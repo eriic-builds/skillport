@@ -1,0 +1,14 @@
+{
+  "name": "skillport",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "doctor": "node bin/skills.mjs doctor"
+  },
+  "bin": {
+    "skills": "./bin/skills.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

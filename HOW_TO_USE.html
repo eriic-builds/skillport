@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Skillport — Interactive Guide</title>
+  <style>
+    :root {
+      --ink: #17231f;
+      --muted: #607069;
+      --paper: #f8f5ed;
+      --card: #fffdf7;
+      --line: #d9ded5;
+      --green: #176b4d;
+      --green-dark: #0c4c35;
+      --green-soft: #e6f2ea;
+      --gold: #d49325;
+      --gold-soft: #fff0cf;
+      --blue-soft: #eaf2f8;
+      --shadow: 0 18px 48px rgba(23, 35, 31, 0.1);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(212, 147, 37, 0.16), transparent 30rem),
+        linear-gradient(180deg, #f4f7f1 0, var(--paper) 30rem);
+      font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+    a { color: var(--green-dark); }
+
+    .shell {
+      width: min(1160px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      padding: 54px 0 30px;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 790px;
+      margin: 10px 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.5rem, 7vw, 5.2rem);
+      font-weight: 500;
+      letter-spacing: -0.055em;
+      line-height: 0.98;
+    }
+
+    .lede {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.12rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 245px minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+      padding-bottom: 64px;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 247, 0.88);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 20px;
+      background: #e1e7e0;
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), #42a574);
+      transition: width 220ms ease;
+    }
+
+    nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 18px;
+    }
+
+    nav button {
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 10px;
+      color: var(--muted);
+      background: transparent;
+      text-align: left;
+    }
+
+    nav button:hover, nav button.active {
+      color: var(--green-dark);
+      background: var(--green-soft);
+    }
+
+    nav button.active { font-weight: 800; }
+
+    .reset {
+      width: 100%;
+      margin-top: 16px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    main { min-width: 0; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .hero-card, .step, .route-card, .callout {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: clamp(24px, 5vw, 44px);
+    }
+
+    h2, h3 { line-height: 1.15; }
+    h2 {
+      margin: 0 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+    }
+
+    h3 { margin: 0 0 8px; }
+    p { margin: 0 0 14px; }
+    p:last-child { margin-bottom: 0; }
+    .muted { color: var(--muted); }
+
+    .choice-grid, .route-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .choice {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      text-align: left;
+      transition: transform 150ms ease, border-color 150ms ease;
+    }
+
+    .choice:hover {
+      transform: translateY(-2px);
+      border-color: var(--green);
+    }
+
+    .choice strong { display: block; margin-bottom: 4px; }
+    .choice span { color: var(--muted); font-size: 0.92rem; }
+
+    .step-list { display: grid; gap: 16px; margin-top: 18px; }
+    .step {
+      position: relative;
+      padding: 24px 24px 24px 72px;
+      box-shadow: 0 8px 25px rgba(23, 35, 31, 0.06);
+    }
+
+    .step-number {
+      position: absolute;
+      top: 22px;
+      left: 22px;
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-weight: 800;
+    }
+
+    .check {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 17px;
+      color: var(--green-dark);
+      font-weight: 700;
+    }
+
+    .check input {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--green);
+    }
+
+    .command {
+      position: relative;
+      margin: 14px 0;
+      padding: 18px 84px 18px 18px;
+      overflow-x: auto;
+      border-radius: 12px;
+      color: #eaf6ef;
+      background: #13251f;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .copy {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 7px 11px;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 8px;
+      color: #fff;
+      background: rgba(255,255,255,0.09);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .copy.copied { color: #13251f; background: #bce9ca; }
+
+    .callout {
+      margin: 18px 0;
+      padding: 18px 20px;
+      box-shadow: none;
+    }
+    .callout.note { border-color: #b9d2e3; background: var(--blue-soft); }
+    .callout.warn { border-color: #e6c77e; background: var(--gold-soft); }
+    .callout.good { border-color: #b8d8c3; background: var(--green-soft); }
+
+    .route-card {
+      padding: 22px;
+      box-shadow: 0 8px 25px rgba(23, 35, 31, 0.06);
+    }
+
+    .tag {
+      display: inline-flex;
+      margin-bottom: 10px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: var(--green-soft);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .surface-table {
+      width: 100%;
+      margin-top: 18px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .surface-table th, .surface-table td {
+      padding: 13px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    .surface-table th { color: var(--muted); background: #f2f5ef; font-size: 0.8rem; }
+    .surface-table tr:last-child td { border-bottom: 0; }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin: 16px 0;
+    }
+    .field label { color: var(--muted); font-size: 0.82rem; font-weight: 800; }
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .done-banner {
+      padding: 28px;
+      border-radius: var(--radius);
+      color: #fff;
+      background: linear-gradient(135deg, var(--green-dark), var(--green));
+      box-shadow: var(--shadow);
+    }
+
+    footer {
+      padding: 0 0 44px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 800px) {
+      header { padding-top: 32px; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      nav { grid-template-columns: repeat(3, 1fr); }
+      nav button { text-align: center; font-size: 0.82rem; }
+      .choice-grid, .route-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .shell { width: min(100% - 20px, 1160px); }
+      nav { grid-template-columns: repeat(2, 1fr); }
+      .step { padding: 66px 18px 20px; }
+      .step-number { top: 18px; left: 18px; }
+      .surface-table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <div class="eyebrow">Skillport · Interactive Guide</div>
+    <h1>One skill library.<br>Every AI tool.</h1>
+    <p class="lede">Follow one path at a time. Check off each step, copy commands safely, and return later—your progress stays in this browser.</p>
+  </header>
+
+  <div class="shell layout">
+    <aside class="sidebar">
+      <div class="progress-label">
+        <span>Your progress</span>
+        <span id="progressText">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+      <nav aria-label="Guide sections">
+        <button class="active" data-panel="start">Start here</button>
+        <button data-panel="setup">Set up</button>
+        <button data-panel="use">Use skills</button>
+        <button data-panel="choose">Choosing skills</button>
+        <button data-panel="add">Add a skill</button>
+        <button data-panel="claude">Add to Claude</button>
+        <button data-panel="help">Fix a problem</button>
+      </nav>
+      <button class="reset" id="resetProgress">Reset checkmarks</button>
+    </aside>
+
+    <main>
+      <section class="panel active" id="start">
+        <div class="hero-card">
+          <span class="tag">The simple model</span>
+          <h2>There is one real library.</h2>
+          <p class="muted">Your skills live in <code>~/skillport/skills/</code>. Most local AI tools connect directly to it. You do not copy every skill into every app.</p>
+
+          <div class="callout good">
+            <strong>The everyday loop:</strong> add or edit a skill → run <code>skills sync</code> → refresh the AI client if needed.
+          </div>
+
+          <h3>What do you want to do?</h3>
+          <div class="choice-grid">
+            <button class="choice jump" data-go="setup">
+              <strong>Set up a new computer</strong>
+              <span>Use your template copy and connect local AI tools.</span>
+            </button>
+            <button class="choice jump" data-go="use">
+              <strong>Use an existing skill</strong>
+              <span>See your skills and call one by name.</span>
+            </button>
+            <button class="choice jump" data-go="add">
+              <strong>Add a new skill</strong>
+              <span>Create one yourself or import one from GitHub.</span>
+            </button>
+            <button class="choice jump" data-go="claude">
+              <strong>Add skills to Claude</strong>
+              <span>Choose Claude Code, Cowork, or browser chat.</span>
+            </button>
+          </div>
+
+          <table class="surface-table">
+            <thead><tr><th>Claude surface</th><th>How it receives skills</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Claude Code</strong></td><td>Direct link to this library</td></tr>
+              <tr><td><strong>Claude Cowork</strong></td><td>Private GitHub plugin marketplace</td></tr>
+              <tr><td><strong>Claude Desktop Chat / claude.ai</strong></td><td>Manual ZIP upload</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="setup">
+        <div class="hero-card">
+          <span class="tag">One time per computer</span>
+          <h2>Set up the library</h2>
+          <p class="muted">These steps connect Claude Code, Codex, Copilot, VS Code, and Antigravity to the same files.</p>
+        </div>
+        <div class="step-list">
+          <article class="step">
+            <div class="step-number">1</div>
+            <h3>Install the basics</h3>
+            <p>Install Git, GitHub CLI, and Node.js 20 or newer. Then sign in to GitHub:</p>
+            <pre class="command"><code>gh auth login</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="setup-auth"> I signed in to GitHub</label>
+          </article>
+          <article class="step">
+            <div class="step-number">2</div>
+            <h3>Use your template copy</h3>
+            <p>On the public Skillport page, choose <strong>Use this template</strong> to create your own repository first. Then clone that copy:</p>
+            <pre class="command"><code>gh repo clone YOUR_GITHUB_USERNAME/YOUR_REPOSITORY ~/skillport</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="setup-clone"> The repository is on this computer</label>
+          </article>
+          <article class="step">
+            <div class="step-number">3</div>
+            <h3>Connect all local AI tools</h3>
+            <pre class="command"><code>~/skillport/bin/skills link</code><button class="copy">Copy</button></pre>
+            <p class="muted">This creates safe links. It does not duplicate your skills.</p>
+            <label class="check"><input type="checkbox" data-check="setup-link"> The link command finished</label>
+          </article>
+          <article class="step">
+            <div class="step-number">4</div>
+            <h3>Check the setup</h3>
+            <pre class="command"><code>~/skillport/bin/skills doctor</code><button class="copy">Copy</button></pre>
+            <div class="callout note">If Doctor only says Codex is not installed and you do not use Codex, your other clients can still work.</div>
+            <label class="check"><input type="checkbox" data-check="setup-doctor"> I reviewed Doctor's result</label>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="use">
+        <div class="hero-card">
+          <span class="tag">Everyday use</span>
+          <h2>Use a skill</h2>
+          <p class="muted">Once linked, skills are already available. You normally invoke them with plain language.</p>
+        </div>
+        <div class="step-list">
+          <article class="step">
+            <div class="step-number">1</div>
+            <h3>See what you have</h3>
+            <pre class="command"><code>skills list</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="use-list"> I can see the skill list</label>
+          </article>
+          <article class="step">
+            <div class="step-number">2</div>
+            <h3>Ask naturally</h3>
+            <p>Try this in an AI client:</p>
+            <pre class="command"><code>Use the commit-message skill to tailor my project for this job.</code><button class="copy">Copy</button></pre>
+            <p class="muted">You may name the skill directly, or simply describe a matching task.</p>
+            <label class="check"><input type="checkbox" data-check="use-prompt"> I invoked a skill</label>
+          </article>
+          <article class="step">
+            <div class="step-number">3</div>
+            <h3>Optional: bring one skill into a project</h3>
+            <p>Only do this when a project needs its own fixed copy:</p>
+            <pre class="command"><code>cd /path/to/your/project
+skills use commit-message</code><button class="copy">Copy</button></pre>
+            <p>Remove that project copy later with:</p>
+            <pre class="command"><code>skills unuse commit-message</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="use-project"> I understand project copies are optional</label>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="choose">
+        <div class="hero-card">
+          <span class="tag">Manage your skills</span>
+          <h2>Choosing your skills</h2>
+          <p class="muted">Keep skills you use regularly, and shelf the others to reduce noise. Everything is saved in Git.</p>
+        </div>
+
+        <article class="step">
+          <h3>Active vs. Shelf — the mental model</h3>
+          <p>Think of it like a bookshelf: your desk holds the books you're reading now (active skills), while the shelf holds books you keep but aren't using this week.</p>
+          <pre style="padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; font-size: 0.9em; line-height: 1.4;">
+   shelf/                          skills/
+   ┌──────────────┐                ┌──────────────┐
+   │  📚 shelf    │  ← unshelve ─→ │  📖 desk     │
+   │              │                │              │
+   │  stored      │  ← shelve ───  │  in use      │
+   │  not loaded  │                │  loads every │
+   │              │                │  session     │
+   └──────────────┘                └──────────────┘
+          ↑
+          └── skills shelf   (just look at what's stored)
+          </pre>
+          <p><strong>shelve</strong> = put away (a verb, it moves something)</p>
+          <p><strong>unshelve</strong> = take out to use (remove from storage)</p>
+          <p><strong>shelf</strong> = look at what's stored (a noun, it only looks)</p>
+          <label class="check"><input type="checkbox" data-check="choose-model"> I understand the bookshelf model</label>
+        </article>
+
+        <article class="step">
+          <h3>Command reference — the three skill commands</h3>
+          <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
+            <tr style="border-bottom: 1px solid var(--line);">
+              <th style="text-align: left; padding: 8px; color: var(--muted); font-size: 0.78rem; text-transform: uppercase;">You want to…</th>
+              <th style="text-align: left; padding: 8px; color: var(--muted); font-size: 0.78rem; text-transform: uppercase;">Run this</th>
+              <th style="text-align: left; padding: 8px; color: var(--muted); font-size: 0.78rem; text-transform: uppercase;">Think of it as…</th>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--line);">
+              <td style="padding: 8px;">See what's stored</td>
+              <td style="padding: 8px; font-family: monospace;">skills shelf</td>
+              <td style="padding: 8px;">look at the shelf</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--line);">
+              <td style="padding: 8px;">Start using a skill</td>
+              <td style="padding: 8px; font-family: monospace;">skills unshelve &lt;name&gt;</td>
+              <td style="padding: 8px;">take it off the shelf</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px;">Stop loading a skill</td>
+              <td style="padding: 8px; font-family: monospace;">skills shelve &lt;name&gt;</td>
+              <td style="padding: 8px;">put it back on the shelf</td>
+            </tr>
+          </table>
+          <label class="check"><input type="checkbox" data-check="choose-commands"> I know the three commands</label>
+        </article>
+
+        <article class="step">
+          <h3>A worked example: Monday morning, applying for a design role</h3>
+          <p><strong>Step 1: See what's currently active</strong></p>
+          <pre class="command"><code>skills list</code><button class="copy">Copy</button></pre>
+          <p class="muted">Output: 25 skills, all loaded. Too much noise.</p>
+
+          <p><strong>Step 2: See what's on the shelf</strong></p>
+          <pre class="command"><code>skills shelf</code><button class="copy">Copy</button></pre>
+          <p class="muted">Output: skills stored on the shelf, including "commit-message" and "universal-skill-probe".</p>
+
+          <p><strong>Step 3: Activate the design skills</strong></p>
+          <pre class="command"><code>skills unshelve commit-message universal-skill-probe</code><button class="copy">Copy</button></pre>
+          <p class="muted">Output: Skills moved from shelf/ back to skills/, re-wired to every AI tool.</p>
+
+          <p><strong>Step 4: Restart your AI client</strong></p>
+          <p class="callout warn"><strong>Important:</strong> AI clients cache their skill list at startup. The new skills are ready, but the client must be restarted to see them.</p>
+
+          <p><strong>Step 5: Now use them</strong></p>
+          <p>In your AI client:</p>
+          <pre class="command"><code>Create a portfolio piece showcasing my design work for this role</code><button class="copy">Copy</button></pre>
+          <label class="check"><input type="checkbox" data-check="choose-example"> I walked through a complete example</label>
+        </article>
+
+        <article class="step">
+          <h3>Two common mix-ups</h3>
+          <div class="callout warn">
+            <p><strong>Mix-up #1: "shelf" and "shelve" are too similar"</strong></p>
+            <p><code>shelf</code> is a <strong>noun</strong> — it's the container; it only looks.</p>
+            <p><code>shelve</code> is a <strong>verb</strong> — it's an action; it moves something.</p>
+            <p>Just like: "I looked at the <strong>shelf</strong>. I <strong>shelved</strong> the book."</p>
+          </div>
+
+          <div class="callout warn">
+            <p><strong>Mix-up #2: "Does shelve turn a skill on or off?"</strong></p>
+            <p><strong>Off.</strong> Shelving a book means putting it away, storing it. So <code>skills shelve &lt;name&gt;</code> stops a skill loading. The skill is still there, safe in Git, just not active.</p>
+          </div>
+          <label class="check"><input type="checkbox" data-check="choose-mixups"> I can spot these mix-ups</label>
+        </article>
+
+        <article class="step">
+          <h3>What the skill-shelf skill does</h3>
+          <p>You don't have to remember these commands. There's a skill called <code>skill-shelf</code> that does this work for you.</p>
+          <p>Try saying something like:</p>
+          <pre class="command"><code>I need my project skills</code><button class="copy">Copy</button></pre>
+          <p>The skill will:</p>
+          <ol>
+            <li>Show you matching skills from the shelf with their descriptions</li>
+            <li>Ask for your confirmation before moving anything</li>
+            <li>Run the unshelve command</li>
+            <li>Tell you to restart your AI client</li>
+          </ol>
+          <p class="callout note"><strong>Always confirm:</strong> The skill-shelf skill will always show you what it found and ask before doing anything. It never silently changes your skills.</p>
+          <label class="check"><input type="checkbox" data-check="choose-meta-skill"> I know skill-shelf can do this automatically</label>
+        </article>
+      </section>
+
+      <section class="panel" id="add">
+        <div class="hero-card">
+          <span class="tag">Grow the library</span>
+          <h2>Add a skill</h2>
+          <p class="muted">Choose one method. All three end in the same canonical <code>skills/</code> folder.</p>
+        </div>
+
+        <div class="route-grid">
+          <article class="route-card">
+            <span class="tag">Easiest</span>
+            <h3>Ask Claude Code</h3>
+            <p>Say: <em>“Create a personal skill called commit-message.”</em></p>
+            <p class="muted">“Personal” matters: Claude writes it to <code>~/.claude/skills</code>, which points into this repository.</p>
+          </article>
+          <article class="route-card">
+            <span class="tag">From GitHub</span>
+            <h3>Import an existing skill</h3>
+            <div class="field">
+              <label for="skillUrl">Paste the GitHub repository URL</label>
+              <input id="skillUrl" value="https://github.com/your-name/your-skill-repo">
+            </div>
+            <pre class="command"><code id="importCommand">skills import https://github.com/your-name/your-skill-repo</code><button class="copy">Copy</button></pre>
+          </article>
+        </div>
+
+        <div class="step-list">
+          <article class="step">
+            <div class="step-number">1</div>
+            <h3>Confirm it appears</h3>
+            <pre class="command"><code>skills list</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="add-present"> The new skill appears in the list</label>
+          </article>
+          <article class="step">
+            <div class="step-number">2</div>
+            <h3>Validate it</h3>
+            <pre class="command"><code>skills doctor</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="add-valid"> Doctor accepts the new skill</label>
+          </article>
+          <article class="step">
+            <div class="step-number">3</div>
+            <h3>Save and publish it</h3>
+            <pre class="command"><code>skills sync "add my new skill"</code><button class="copy">Copy</button></pre>
+            <p class="muted">This commits your changes, pulls safely, and pushes to your GitHub repository.</p>
+            <label class="check"><input type="checkbox" data-check="add-sync"> The skill was synced</label>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="claude">
+        <div class="hero-card">
+          <span class="tag">Choose the correct Claude</span>
+          <h2>Add skills to Claude</h2>
+          <p class="muted">Claude Code, Cowork, and browser chat use different delivery systems. Pick the surface you actually use.</p>
+          <div class="choice-grid">
+            <button class="choice surface-jump" data-target="claude-code">
+              <strong>Claude Code</strong><span>Terminal coding client</span>
+            </button>
+            <button class="choice surface-jump" data-target="cowork">
+              <strong>Claude Cowork</strong><span>Desktop agent mode</span>
+            </button>
+            <button class="choice surface-jump" data-target="cloud-chat">
+              <strong>Claude Chat / claude.ai</strong><span>Desktop chat or browser</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <article class="step" id="claude-code">
+            <div class="step-number">A</div>
+            <h3>Claude Code: run one link command</h3>
+            <pre class="command"><code>~/skillport/bin/skills link</code><button class="copy">Copy</button></pre>
+            <p>Restart Claude Code. Your skills now arrive directly through <code>~/.claude/skills</code>.</p>
+            <div class="callout warn"><strong>Do not install the marketplace in Claude Code.</strong> The direct link already delivers the same skills; installing both can create duplicate delivery paths.</div>
+            <label class="check"><input type="checkbox" data-check="claude-code"> Claude Code is linked</label>
+          </article>
+
+          <article class="step" id="cowork">
+            <div class="step-number">B</div>
+            <h3>Cowork: add your marketplace</h3>
+            <p>Open a <strong>Cowork</strong> session in Claude Desktop and enter these commands there—not in Terminal:</p>
+            <pre class="command"><code>/plugin marketplace add YOUR_GITHUB_USERNAME/YOUR_REPOSITORY
+/plugin install skillport@skillport</code><button class="copy">Copy</button></pre>
+            <p class="muted">Cowork may ask you to authorize GitHub for your repository.</p>
+            <label class="check"><input type="checkbox" data-check="cowork-install"> The marketplace and plugin are installed</label>
+
+            <h3 style="margin-top:24px">After changing a skill</h3>
+            <p>First publish from Terminal:</p>
+            <pre class="command"><code>skills sync "update a skill"</code><button class="copy">Copy</button></pre>
+            <p>Then update both the catalog and installed plugin inside Cowork:</p>
+            <pre class="command"><code>/plugin marketplace update
+/plugin update skillport@skillport</code><button class="copy">Copy</button></pre>
+            <label class="check"><input type="checkbox" data-check="cowork-update"> I understand the Cowork update flow</label>
+          </article>
+
+          <article class="step" id="cloud-chat">
+            <div class="step-number">C</div>
+            <h3>Claude Chat / claude.ai: upload one ZIP</h3>
+            <p>These cloud surfaces cannot read your computer or GitHub plugin directly. Package only the skill you want:</p>
+            <div class="field">
+              <label for="zipSkill">Skill folder name</label>
+              <input id="zipSkill" value="commit-message" pattern="[a-z0-9-]+">
+            </div>
+            <pre class="command"><code id="zipCommand">cd ~/skillport/skills
+zip -r ~/Downloads/commit-message.zip commit-message/</code><button class="copy">Copy</button></pre>
+            <p>Then open <strong>Customize → Skills</strong>, upload the ZIP, and enable it.</p>
+            <div class="callout note">Cloud uploads are copies. Upload a new ZIP after the skill changes. Do not upload the entire library unless you intentionally want one large cloud skill.</div>
+            <label class="check"><input type="checkbox" data-check="cloud-upload"> I uploaded and enabled the ZIP</label>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" id="help">
+        <div class="hero-card">
+          <span class="tag">Troubleshooting</span>
+          <h2>Fix the common problems</h2>
+          <div class="route-grid">
+            <article class="route-card">
+              <h3>A skill is missing</h3>
+              <p>Run <code>skills link</code>, then <code>skills doctor</code>. Restart the AI client afterward.</p>
+            </article>
+            <article class="route-card">
+              <h3>Cowork has an old version</h3>
+              <p>Run both <code>/plugin marketplace update</code> and <code>/plugin update skillport@skillport</code>.</p>
+            </article>
+            <article class="route-card">
+              <h3>Supporting files fail</h3>
+              <p>From that project, run <code>skills use &lt;skill-name&gt;</code> to create a local project copy.</p>
+            </article>
+            <article class="route-card">
+              <h3>Cloud Claude is outdated</h3>
+              <p>Rebuild the single-skill ZIP and upload it again in <strong>Customize → Skills</strong>.</p>
+            </article>
+          </div>
+          <div class="callout good" style="margin-top:24px">
+            <strong>The universal first check:</strong>
+            <pre class="command"><code>cd ~/skillport
+skills doctor</code><button class="copy">Copy</button></pre>
+          </div>
+          <div class="done-banner">
+            <h3>You know the whole system.</h3>
+            <p>One library for local tools, a GitHub marketplace for Cowork, and deliberate ZIP uploads for cloud chat.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="shell">Standalone guide · No internet connection or web server required</footer>
+
+  <script>
+    (() => {
+      const storageKey = "skillport-guide-progress-v1";
+      const navButtons = [...document.querySelectorAll("nav button[data-panel]")];
+      const panels = [...document.querySelectorAll(".panel")];
+      const checks = [...document.querySelectorAll("[data-check]")];
+
+      function showPanel(id) {
+        panels.forEach((panel) => panel.classList.toggle("active", panel.id === id));
+        navButtons.forEach((button) => button.classList.toggle("active", button.dataset.panel === id));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      navButtons.forEach((button) => button.addEventListener("click", () => showPanel(button.dataset.panel)));
+      document.querySelectorAll(".jump").forEach((button) =>
+        button.addEventListener("click", () => showPanel(button.dataset.go))
+      );
+      document.querySelectorAll(".surface-jump").forEach((button) =>
+        button.addEventListener("click", () => {
+          document.getElementById(button.dataset.target).scrollIntoView({ behavior: "smooth", block: "start" });
+        })
+      );
+
+      function savedProgress() {
+        try { return JSON.parse(localStorage.getItem(storageKey) || "{}"); }
+        catch { return {}; }
+      }
+
+      function updateProgress() {
+        const state = {};
+        checks.forEach((check) => { state[check.dataset.check] = check.checked; });
+        localStorage.setItem(storageKey, JSON.stringify(state));
+        const complete = checks.filter((check) => check.checked).length;
+        const percent = Math.round((complete / checks.length) * 100);
+        document.getElementById("progressBar").style.width = percent + "%";
+        document.getElementById("progressText").textContent = percent + "%";
+      }
+
+      const state = savedProgress();
+      checks.forEach((check) => {
+        check.checked = Boolean(state[check.dataset.check]);
+        check.addEventListener("change", updateProgress);
+      });
+      updateProgress();
+
+      document.getElementById("resetProgress").addEventListener("click", () => {
+        checks.forEach((check) => { check.checked = false; });
+        updateProgress();
+      });
+
+      async function copyText(button, text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const area = document.createElement("textarea");
+          area.value = text;
+          area.style.position = "fixed";
+          area.style.opacity = "0";
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand("copy");
+          area.remove();
+        }
+        button.textContent = "Copied";
+        button.classList.add("copied");
+        setTimeout(() => {
+          button.textContent = "Copy";
+          button.classList.remove("copied");
+        }, 1400);
+      }
+
+      document.querySelectorAll(".copy").forEach((button) => {
+        button.addEventListener("click", () => {
+          const code = button.parentElement.querySelector("code");
+          copyText(button, code.textContent.trim());
+        });
+      });
+
+      const skillUrl = document.getElementById("skillUrl");
+      skillUrl.addEventListener("input", () => {
+        document.getElementById("importCommand").textContent = "skills import " + skillUrl.value.trim();
+      });
+
+      const zipSkill = document.getElementById("zipSkill");
+      zipSkill.addEventListener("input", () => {
+        const safeName = zipSkill.value.trim().replace(/[^a-z0-9-]/g, "");
+        document.getElementById("zipCommand").textContent =
+          "cd ~/skillport/skills\nzip -r ~/Downloads/" + safeName + ".zip " + safeName + "/";
+      });
+    })();
+  </script>
+</body>
+</html>

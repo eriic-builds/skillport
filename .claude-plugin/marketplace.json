@@ -1,0 +1,14 @@
+{
+  "name": "skillport",
+  "description": "One skill library. Every AI tool.",
+  "owner": {
+    "name": "eriic-builds"
+  },
+  "plugins": [
+    {
+      "name": "skillport",
+      "source": ".",
+      "description": "Install the skills in this library as one Claude plugin."
+    }
+  ]
+}
