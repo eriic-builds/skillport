@@ -10,15 +10,19 @@ The source of truth is `skills/`. Each skill is a directory containing a
 `SKILL.md` file and any supporting resources it needs.
 
 **New here?** Start with the interactive guide:
-[HOW_TO_USE.html](HOW_TO_USE.html). GitHub shows HTML source instead of rendering
-it, so download it and open it locally:
+**[eriic-builds.github.io/skillport/HOW_TO_USE.html](https://eriic-builds.github.io/skillport/HOW_TO_USE.html)**.
+GitHub Pages renders it live, so no download is needed. If you forked this
+repo, the same guide is served from your own copy at
+`https://<you>.github.io/<your-repo>/HOW_TO_USE.html` once GitHub Pages is
+enabled for it (Settings → Pages → Deploy from a branch → `main` / `/`).
+
+You can also open the file locally instead:
 
 ```sh
 open ~/skillport/HOW_TO_USE.html
 ```
 
-GitHub itself shows HTML source instead of rendering the page. [GUIDE.md](GUIDE.md)
-is the detailed text reference.
+[GUIDE.md](GUIDE.md) is the detailed text reference.
 
 ## Set up your own library
 
@@ -152,7 +156,7 @@ Bulk imports (`skills import --all`) land on the shelf by default, so they don't
 flood an active workflow. Or ask the `skill-shelf` skill conversationally: *"I
 need my project skills"* and it will find, confirm, and activate matches for you.
 
-See [GUIDE.md](GUIDE.md) and [HOW_TO_USE.html](HOW_TO_USE.html) for the full reference.
+See [GUIDE.md](GUIDE.md) and the [interactive guide](https://eriic-builds.github.io/skillport/HOW_TO_USE.html) for the full reference.
 
 ## Client integration
 
