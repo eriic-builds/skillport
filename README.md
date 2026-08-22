@@ -31,6 +31,7 @@ Install Git, GitHub CLI, and Node.js 20 or newer, then:
 ```sh
 gh auth login
 gh repo clone YOUR_GITHUB_USERNAME/YOUR_REPOSITORY ~/skillport
+# Edit .claude-plugin/plugin.json and marketplace.json with your repo identity.
 ~/skillport/bin/skills link
 ~/skillport/bin/skills doctor
 ```
@@ -39,6 +40,7 @@ On Windows PowerShell:
 
 ```powershell
 gh repo clone YOUR_GITHUB_USERNAME/YOUR_REPOSITORY "$HOME\skillport"
+# Edit .claude-plugin/plugin.json and marketplace.json with your repo identity.
 & "$HOME\skillport\bin\skills.ps1" link
 & "$HOME\skillport\bin\skills.ps1" doctor
 ```
