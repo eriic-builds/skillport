@@ -419,7 +419,7 @@
             <thead><tr><th>Claude surface</th><th>How it receives skills</th></tr></thead>
             <tbody>
               <tr><td><strong>Claude Code</strong></td><td>Direct link to this library</td></tr>
-              <tr><td><strong>Claude Cowork</strong></td><td>Private GitHub plugin marketplace</td></tr>
+              <tr><td><strong>Claude Cowork</strong></td><td>GitHub plugin marketplace</td></tr>
               <tr><td><strong>Claude Desktop Chat / claude.ai</strong></td><td>Manual ZIP upload</td></tr>
             </tbody>
           </table>
@@ -445,7 +445,8 @@
             <h3>Use your template copy</h3>
             <p>On the public Skillport page, choose <strong>Use this template</strong> to create your own repository first. Then clone that copy:</p>
             <pre class="command"><code>gh repo clone YOUR_GITHUB_USERNAME/YOUR_REPOSITORY ~/skillport</code><button class="copy">Copy</button></pre>
-            <p class="muted">Before running Doctor, edit <code>.claude-plugin/plugin.json</code> and <code>marketplace.json</code> so the owner and repository point to your new copy.</p>
+            <p class="muted">Before running Doctor, edit <code>.claude-plugin/plugin.json</code> and <code>.claude-plugin/marketplace.json</code> so the owner and repository point to your new copy.</p>
+            <div class="callout note">On Windows PowerShell, clone to <code>"$HOME\skillport"</code>, then run <code>&amp; "$HOME\skillport\bin\skills.ps1" link</code> (and the same pattern for every command below) instead of the <code>bin/skills</code> form.</div>
             <label class="check"><input type="checkbox" data-check="setup-clone"> The repository is on this computer and its metadata is mine</label>
           </article>
           <article class="step">
@@ -457,8 +458,17 @@
           </article>
           <article class="step">
             <div class="step-number">4</div>
+            <h3>Make the <code>skills</code> command easy to type</h3>
+            <p>The rest of this guide, and <code>GUIDE.md</code>, use the short form <code>skills ...</code>. Add an alias so that works:</p>
+            <pre class="command"><code>echo "alias skills='~/skillport/bin/skills'" >> ~/.zshrc && source ~/.zshrc</code><button class="copy">Copy</button></pre>
+            <p class="muted">Using bash instead of zsh? Append to <code>~/.bash_profile</code> on macOS (login shells read that file, not <code>~/.bashrc</code>), or to <code>~/.bashrc</code> on Linux. On Windows PowerShell, add <code>function skills { & "$HOME\skillport\bin\skills.ps1" @args }</code> to your PowerShell profile.</p>
+            <p class="muted">Prefer not to? You can always type <code>~/skillport/bin/skills</code> in full instead of the short form used below.</p>
+            <label class="check"><input type="checkbox" data-check="setup-alias"> I can run "skills" from any directory</label>
+          </article>
+          <article class="step">
+            <div class="step-number">5</div>
             <h3>Check the setup</h3>
-            <pre class="command"><code>~/skillport/bin/skills doctor</code><button class="copy">Copy</button></pre>
+            <pre class="command"><code>skills doctor</code><button class="copy">Copy</button></pre>
             <div class="callout note">If Doctor only says Codex is not installed and you do not use Codex, your other clients can still work.</div>
             <label class="check"><input type="checkbox" data-check="setup-doctor"> I reviewed Doctor's result</label>
           </article>
@@ -482,7 +492,7 @@
             <div class="step-number">2</div>
             <h3>Ask naturally</h3>
             <p>Try this in an AI client:</p>
-            <pre class="command"><code>Use the commit-message skill to tailor my project for this job.</code><button class="copy">Copy</button></pre>
+            <pre class="command"><code>Use the commit-message skill to write a commit for my staged changes.</code><button class="copy">Copy</button></pre>
             <p class="muted">You may name the skill directly, or simply describe a matching task.</p>
             <label class="check"><input type="checkbox" data-check="use-prompt"> I invoked a skill</label>
           </article>
@@ -555,25 +565,23 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
         </article>
 
         <article class="step">
-          <h3>A worked example: Monday morning, applying for a design role</h3>
+          <h3>A worked example: your library outgrows what you use daily</h3>
+          <p class="muted">A fresh template starts with only 3 skills and an empty shelf, so this example describes what happens later, once you've added skills you don't need every day — for instance, after importing a few extra ones from GitHub.</p>
           <p><strong>Step 1: See what's currently active</strong></p>
           <pre class="command"><code>skills list</code><button class="copy">Copy</button></pre>
-          <p class="muted">Output: 25 skills, all loaded. Too much noise.</p>
+          <p class="muted">Output: every active skill, plus a summary line like "9 active · 4,100 chars · 41% of budget". If that count is more than you use in a normal week, some are candidates for the shelf.</p>
 
-          <p><strong>Step 2: See what's on the shelf</strong></p>
+          <p><strong>Step 2: Put away what you're not using this week</strong></p>
+          <pre class="command"><code>skills shelve some-rarely-used-skill</code><button class="copy">Copy</button></pre>
+          <p class="muted">Output: the skill moves from skills/ to shelf/. It's still in Git, just not loaded by any client.</p>
+
+          <p><strong>Step 3: Later, see what's stored</strong></p>
           <pre class="command"><code>skills shelf</code><button class="copy">Copy</button></pre>
-          <p class="muted">Output: skills stored on the shelf, including "commit-message" and "universal-skill-probe".</p>
+          <p class="muted">Output: "The shelf is empty." until you've shelved something — then each shelved skill and its description.</p>
 
-          <p><strong>Step 3: Activate the design skills</strong></p>
-          <pre class="command"><code>skills unshelve commit-message universal-skill-probe</code><button class="copy">Copy</button></pre>
-          <p class="muted">Output: Skills moved from shelf/ back to skills/, re-wired to every AI tool.</p>
-
-          <p><strong>Step 4: Restart your AI client</strong></p>
-          <p class="callout warn"><strong>Important:</strong> AI clients cache their skill list at startup. The new skills are ready, but the client must be restarted to see them.</p>
-
-          <p><strong>Step 5: Now use them</strong></p>
-          <p>In your AI client:</p>
-          <pre class="command"><code>Create a portfolio piece showcasing my design work for this role</code><button class="copy">Copy</button></pre>
+          <p><strong>Step 4: Bring one back when you need it</strong></p>
+          <pre class="command"><code>skills unshelve some-rarely-used-skill</code><button class="copy">Copy</button></pre>
+          <p class="callout warn"><strong>Important:</strong> AI clients cache their skill list at startup. The skill is ready, but the client must be restarted to see it.</p>
           <label class="check"><input type="checkbox" data-check="choose-example"> I walked through a complete example</label>
         </article>
 
@@ -595,9 +603,9 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
 
         <article class="step">
           <h3>What the skill-shelf skill does</h3>
-          <p>You don't have to remember these commands. There's a skill called <code>skill-shelf</code> that does this work for you.</p>
-          <p>Try saying something like:</p>
-          <pre class="command"><code>I need my project skills</code><button class="copy">Copy</button></pre>
+          <p>You don't have to remember these commands. There's a skill called <code>skill-shelf</code> that does this work for you — once your shelf actually has something on it.</p>
+          <p>Once you've shelved a skill, try saying something like:</p>
+          <pre class="command"><code>I need a skill for writing release notes</code><button class="copy">Copy</button></pre>
           <p>The skill will:</p>
           <ol>
             <li>Show you matching skills from the shelf with their descriptions</li>
@@ -605,7 +613,7 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
             <li>Run the unshelve command</li>
             <li>Tell you to restart your AI client</li>
           </ol>
-          <p class="callout note"><strong>Always confirm:</strong> The skill-shelf skill will always show you what it found and ask before doing anything. It never silently changes your skills.</p>
+          <p class="callout note"><strong>Always confirm:</strong> The skill-shelf skill will always show you what it found and ask before doing anything. It never silently changes your skills. On an empty shelf, it will simply tell you there's nothing there.</p>
           <label class="check"><input type="checkbox" data-check="choose-meta-skill"> I know skill-shelf can do this automatically</label>
         </article>
       </section>
@@ -614,15 +622,16 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
         <div class="hero-card">
           <span class="tag">Grow the library</span>
           <h2>Add a skill</h2>
-          <p class="muted">Choose one method. All three end in the same canonical <code>skills/</code> folder.</p>
+          <p class="muted">Choose either method below. Both end in the same canonical <code>skills/</code> folder.</p>
+          <div class="callout note">Requires <a href="#" class="jump" data-go="setup">Set up</a> step 3 (<code>skills link</code>) already done, so Claude Code writes into this repository instead of a plain <code>~/.claude/skills</code> folder. Step 4's alias is optional — it only shortens the commands below.</div>
         </div>
 
         <div class="route-grid">
           <article class="route-card">
             <span class="tag">Easiest</span>
             <h3>Ask Claude Code</h3>
-            <p>Say: <em>“Create a personal skill called commit-message.”</em></p>
-            <p class="muted">“Personal” matters: Claude writes it to <code>~/.claude/skills</code>, which points into this repository.</p>
+            <p>Say: <em>“Create a personal skill called my-skill.”</em></p>
+            <p class="muted">Use a name that doesn't already exist in <code>skills/</code> — this template ships <code>commit-message</code>, <code>skill-shelf</code>, and <code>universal-skill-probe</code>. "Personal" matters: Claude writes it to <code>~/.claude/skills</code>, which points into this repository.</p>
           </article>
           <article class="route-card">
             <span class="tag">From GitHub</span>
@@ -757,7 +766,7 @@ skills doctor</code><button class="copy">Copy</button></pre>
     </main>
   </div>
 
-  <footer class="shell">Standalone guide · No internet connection or web server required</footer>
+  <footer class="shell">Runs entirely in your browser · Nothing you type is sent anywhere · Works hosted or opened as a local file</footer>
 
   <script>
     (() => {
@@ -774,7 +783,10 @@ skills doctor</code><button class="copy">Copy</button></pre>
 
       navButtons.forEach((button) => button.addEventListener("click", () => showPanel(button.dataset.panel)));
       document.querySelectorAll(".jump").forEach((button) =>
-        button.addEventListener("click", () => showPanel(button.dataset.go))
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          showPanel(button.dataset.go);
+        })
       );
       document.querySelectorAll(".surface-jump").forEach((button) =>
         button.addEventListener("click", () => {
