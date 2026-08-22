@@ -22,7 +22,8 @@ You can also open the file locally instead:
 open ~/skillport/HOW_TO_USE.html
 ```
 
-[GUIDE.md](GUIDE.md) is the detailed text reference.
+[GUIDE.md](GUIDE.md) is the detailed text reference. See [CHANGELOG.md](CHANGELOG.md)
+for what changed between releases.
 
 ## Set up your own library
 
