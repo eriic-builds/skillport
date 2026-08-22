@@ -67,7 +67,7 @@ Allow the library once, in your shell profile:
 
 ```sh
 # ~/.zshrc or ~/.bashrc
-alias copilot='copilot --add-dir /Users/ericlam/skillport'
+alias copilot='copilot --add-dir ~/skillport'
 ```
 
 ```powershell
@@ -154,7 +154,7 @@ shelf to hide skills you keep available but don't use regularly.
 
 Bulk imports (`skills import --all`) land on the shelf by default, so they don't
 flood an active workflow. Or ask the `skill-shelf` skill conversationally: *"I
-need my project skills"* and it will find, confirm, and activate matches for you.
+need a skill for writing release notes"* and it will find, confirm, and activate matches for you.
 
 See [GUIDE.md](GUIDE.md) and the [interactive guide](https://eriic-builds.github.io/skillport/HOW_TO_USE.html) for the full reference.
 

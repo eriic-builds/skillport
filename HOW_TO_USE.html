@@ -378,7 +378,7 @@
         <button data-panel="use">Use skills</button>
         <button data-panel="choose">Choosing skills</button>
         <button data-panel="add">Add a skill</button>
-        <button data-panel="claude">Add to Claude</button>
+        <button data-panel="clients">Connect clients</button>
         <button data-panel="help">Fix a problem</button>
       </nav>
       <button class="reset" id="resetProgress">Reset checkmarks</button>
@@ -409,16 +409,16 @@
               <strong>Add a new skill</strong>
               <span>Create one yourself or import one from GitHub.</span>
             </button>
-            <button class="choice jump" data-go="claude">
-              <strong>Add skills to Claude</strong>
-              <span>Choose Claude Code, Cowork, or browser chat.</span>
+            <button class="choice jump" data-go="clients">
+              <strong>Connect a specific client</strong>
+              <span>Verify Copilot, VS Code, Codex, Antigravity, or set up Cowork / claude.ai.</span>
             </button>
           </div>
 
           <table class="surface-table">
-            <thead><tr><th>Claude surface</th><th>How it receives skills</th></tr></thead>
+            <thead><tr><th>Client</th><th>How it receives skills</th></tr></thead>
             <tbody>
-              <tr><td><strong>Claude Code</strong></td><td>Direct link to this library</td></tr>
+              <tr><td><strong>Claude Code, Codex, Copilot CLI, VS Code, Antigravity</strong></td><td>One <code>skills link</code> in Setup wires whichever of these five are installed</td></tr>
               <tr><td><strong>Claude Cowork</strong></td><td>GitHub plugin marketplace</td></tr>
               <tr><td><strong>Claude Desktop Chat / claude.ai</strong></td><td>Manual ZIP upload</td></tr>
             </tbody>
@@ -667,14 +667,26 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
         </div>
       </section>
 
-      <section class="panel" id="claude">
+      <section class="panel" id="clients">
         <div class="hero-card">
-          <span class="tag">Choose the correct Claude</span>
-          <h2>Add skills to Claude</h2>
-          <p class="muted">Claude Code, Cowork, and browser chat use different delivery systems. Pick the surface you actually use.</p>
+          <span class="tag">Every client, one setup</span>
+          <h2>Connect every AI client</h2>
+          <p class="muted">Setup step 3 (<code>skills link</code>) already wired five clients at once, all from the same command. Only Claude's two non-Code surfaces need a separate manual step, because they can't read files on this computer.</p>
+          <table class="surface-table">
+            <thead><tr><th>Client</th><th>How it receives skills</th><th>Extra step</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Claude Code</strong></td><td>Direct symlink to this library</td><td>None — done by <code>skills link</code></td></tr>
+              <tr><td><strong>Codex CLI</strong></td><td>Symlink per skill</td><td>None — done by <code>skills link</code></td></tr>
+              <tr><td><strong>GitHub Copilot CLI</strong></td><td>Registered library path</td><td>Multi-file skills need one shell alias</td></tr>
+              <tr><td><strong>Copilot Chat in VS Code</strong></td><td>Same symlink as Claude Code</td><td>Restart VS Code after changes</td></tr>
+              <tr><td><strong>Antigravity</strong></td><td>Direct symlink, if installed</td><td>None — done by <code>skills link</code></td></tr>
+              <tr><td><strong>Claude Cowork</strong></td><td>GitHub plugin marketplace</td><td>Manual: add marketplace, install plugin</td></tr>
+              <tr><td><strong>Claude Desktop Chat / claude.ai</strong></td><td>Manual cloud upload</td><td>Manual: zip and upload, no live sync</td></tr>
+            </tbody>
+          </table>
           <div class="choice-grid">
-            <button class="choice surface-jump" data-target="claude-code">
-              <strong>Claude Code</strong><span>Terminal coding client</span>
+            <button class="choice surface-jump" data-target="local-clients">
+              <strong>Verify local clients</strong><span>Claude Code, Codex, Copilot, VS Code, Antigravity</span>
             </button>
             <button class="choice surface-jump" data-target="cowork">
               <strong>Claude Cowork</strong><span>Desktop agent mode</span>
@@ -686,22 +698,26 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
         </div>
 
         <div class="step-list">
-          <article class="step" id="claude-code">
-            <div class="step-number">A</div>
-            <h3>Claude Code: run one link command</h3>
-            <pre class="command"><code>~/skillport/bin/skills link</code><button class="copy">Copy</button></pre>
-            <p>Restart Claude Code. Your skills now arrive directly through <code>~/.claude/skills</code>.</p>
-            <div class="callout warn"><strong>Do not install the marketplace in Claude Code.</strong> The direct link already delivers the same skills; installing both can create duplicate delivery paths.</div>
-            <label class="check"><input type="checkbox" data-check="claude-code"> Claude Code is linked</label>
+          <article class="step" id="local-clients">
+            <div class="step-number">1</div>
+            <h3>Claude Code, Codex, Copilot CLI, VS Code, and Antigravity</h3>
+            <p>If Setup step 3 finished without errors, every installed local client already reads this library. Antigravity is linked only when <code>skills link</code> detects it installed; GitHub Copilot CLI is registered only when the <code>copilot</code> CLI itself is installed. Restart whichever ones you use, then confirm inside each:</p>
+            <pre class="command"><code>What skills do you have available?</code><button class="copy">Copy</button></pre>
+            <p class="muted">Claude Code and Copilot Chat in VS Code both read <code>~/.claude/skills</code>. Codex reads a symlink per skill under <code>~/.codex/skills</code> (and <code>~/.agents/skills</code>). GitHub Copilot CLI reads a registered path instead of a symlink. Antigravity links only if <code>skills link</code> detects it installed.</p>
+            <div class="callout warn"><strong>Multi-file skills and Copilot CLI:</strong> Copilot CLI only reads files under its current working directory, so a skill with supporting files beyond <code>SKILL.md</code> needs one alias in your shell profile:
+              <pre class="command"><code>alias copilot='copilot --add-dir ~/skillport'</code><button class="copy">Copy</button></pre>
+            <span class="muted">On Windows PowerShell: <code>function copilot { copilot.exe --add-dir "$HOME\skillport" @args }</code>. <code>skills doctor</code> flags this as missing when it applies.</span></div>
+            <label class="check"><input type="checkbox" data-check="local-clients"> I verified the local clients I use</label>
           </article>
 
           <article class="step" id="cowork">
-            <div class="step-number">B</div>
+            <div class="step-number">2</div>
             <h3>Cowork: add your marketplace</h3>
             <p>Open a <strong>Cowork</strong> session in Claude Desktop and enter these commands there—not in Terminal:</p>
             <pre class="command"><code>/plugin marketplace add YOUR_GITHUB_USERNAME/YOUR_REPOSITORY
 /plugin install skillport@skillport</code><button class="copy">Copy</button></pre>
             <p class="muted">Cowork may ask you to authorize GitHub for your repository.</p>
+            <div class="callout warn"><strong>Do not also install this marketplace in Claude Code.</strong> Claude Code already reads the same skills through <code>~/.claude/skills</code>; installing the plugin there would create a duplicate delivery path.</div>
             <label class="check"><input type="checkbox" data-check="cowork-install"> The marketplace and plugin are installed</label>
 
             <h3 style="margin-top:24px">After changing a skill</h3>
@@ -714,7 +730,7 @@ skills use commit-message</code><button class="copy">Copy</button></pre>
           </article>
 
           <article class="step" id="cloud-chat">
-            <div class="step-number">C</div>
+            <div class="step-number">3</div>
             <h3>Claude Chat / claude.ai: upload one ZIP</h3>
             <p>These cloud surfaces cannot read your computer or GitHub plugin directly. Package only the skill you want:</p>
             <div class="field">
@@ -744,12 +760,16 @@ zip -r ~/Downloads/commit-message.zip commit-message/</code><button class="copy"
               <p>Run both <code>/plugin marketplace update</code> and <code>/plugin update skillport@skillport</code>.</p>
             </article>
             <article class="route-card">
-              <h3>Supporting files fail</h3>
-              <p>From that project, run <code>skills use &lt;skill-name&gt;</code> to create a local project copy.</p>
+              <h3>Copilot CLI can't read supporting files</h3>
+              <p>Add the shell alias from the <a href="#" class="jump" data-go="clients">Connect clients</a> panel, or run <code>skills use &lt;skill-name&gt;</code> in that project to sidestep it entirely.</p>
             </article>
             <article class="route-card">
               <h3>Cloud Claude is outdated</h3>
               <p>Rebuild the single-skill ZIP and upload it again in <strong>Customize → Skills</strong>.</p>
+            </article>
+            <article class="route-card">
+              <h3>VS Code lists a skill twice</h3>
+              <p>Expected — VS Code shows one entry per personal skills location (<code>~/.claude/skills</code> and <code>~/.agents/skills</code>). Both point to the same file; nothing is duplicated on disk.</p>
             </article>
           </div>
           <div class="callout good" style="margin-top:24px">

@@ -445,7 +445,7 @@ version.
 the working directory. Either add the wrapper to your shell profile:
 
 ```sh
-alias copilot='copilot --add-dir /Users/ericlam/skillport'
+alias copilot='copilot --add-dir ~/skillport'
 ```
 
 or bring the skill into the project with `skills use <name>`, which sidesteps the
@@ -486,7 +486,7 @@ use the shelf to hide some while keeping them safe in Git.
 
 **The short version:** `skills shelf` lists shelved skills, `skills unshelve
 <name>` activates them, and `skills shelve <name>` deactivates them. The `skill-shelf`
-meta-skill does this conversationally: say *"I need my project skills"* and it
+meta-skill does this conversationally: say *"I need a skill for writing release notes"* and it
 finds, confirms, and activates matching ones for you.
 
 **A few things to know:**
