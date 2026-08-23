@@ -1,5 +1,7 @@
 # Skillport
 
+- If this library is not installed on this machine yet, follow `INSTALL.md` first:
+  `git clone <your-repo-url> ~/skillport && cd ~/skillport && ./bin/skills install --yes`
 - `skills/` is the canonical inventory; each child directory contains one `SKILL.md`.
 - Use `bin/skills new <name>` to scaffold a skill, then edit its instructions and
   replace its generated `USE_CASES.html` prompts with real examples.

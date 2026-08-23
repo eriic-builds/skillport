@@ -9,6 +9,19 @@ Add a skill once; the clients on your computer can all use the same copy.
 The source of truth is `skills/`. Each skill is a directory containing a
 `SKILL.md` file and any supporting resources it needs.
 
+## Quick bootstrap for a fresh machine
+
+If this library is not installed on this machine yet, the shortest path is:
+
+```sh
+git clone <your-repo-url> ~/skillport
+cd ~/skillport
+./bin/skills install --yes
+```
+
+This runs the repo identity check, links the library into the supported clients,
+and configures the local shell alias needed for multi-file skills.
+
 **New here?** Start with the interactive guide:
 **[eriic-builds.github.io/skillport/HOW_TO_USE.html](https://eriic-builds.github.io/skillport/HOW_TO_USE.html)**.
 GitHub Pages renders it live, so no download is needed. If you forked this

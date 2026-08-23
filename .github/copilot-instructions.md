@@ -1,5 +1,15 @@
 # Copilot instructions for Skillport
 
+## First-run bootstrap
+
+If this library is not installed on this machine yet, follow `INSTALL.md` first:
+
+```sh
+git clone <your-repo-url> ~/skillport
+cd ~/skillport
+./bin/skills install --yes
+```
+
 ## Repository purpose and architecture
 
 This repository is a cross-client AI skills library. The canonical

@@ -10,6 +10,24 @@ There is no update-pulling tool in this template by design (see `GUIDE.md`):
 if you forked this repo earlier, use this file to see what changed upstream
 and hand-apply anything you want.
 
+## [0.3.0] — 2026-08-23
+
+### Added
+- Added a deterministic import safety gate to `bin/skills.mjs`.
+- Imports now stage untrusted skill content off-tree, scan it for block-listed
+  malicious patterns, and refuse to move anything live if security findings are
+  present.
+- Added `--reviewed <token>` support so a previously reviewed import can be
+  re-verified against the same content and then installed intentionally.
+- `unshelve` now reuses the same import review before moving a skill back into
+  the active library.
+
+### Fixed
+- Fixed the pre-existing risk of staging a skill inside the live `skills/`
+  directory, where clients could discover it before approval.
+- Kept setup warnings for executable or install scripts while making the actual
+  import gate deterministic and explicit.
+
 ## [0.2.0] — 2026-08-22
 
 ### Changed
