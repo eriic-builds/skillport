@@ -23,6 +23,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { profileTarget, updateProfile, shellQuote, powershellQuote } from './profile.mjs';
 import { removeOwnedLink } from './managed-links.mjs';
+import { selectClients, clientLinks, preflightLinks } from './clients.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
@@ -713,69 +714,34 @@ function removeLinks(skillName) {
   }
 }
 
-function linkAll() {
-  mkdirSync(skillsDir, { recursive: true });
+function selectedClients() {
+  return selectClients({ args: process.argv.slice(2), home, repo: repoRoot, available: command => {
+    const probe = spawnSync(command, ['--version'], { encoding: 'utf8', timeout: 3000 });
+    return !probe.error && probe.status === 0;
+  }});
+}
+
+function linkAll({ dryRun = false } = {}) {
+  const clients = selectedClients();
   const skills = discoverSkills();
-
-  const scaffolded = scaffoldMissingUseCases(skills);
-  const newlyLinked = new Set();
-  const claudePath = join(home, ".claude", "skills");
-  console.log(`Claude Code: ${ensureLink(claudePath, skillsDir)}`);
-
-  const codexRoot = join(home, ".codex", "skills");
-  mkdirSync(codexRoot, { recursive: true });
-  for (const skill of skills) {
-    const status = ensureLink(join(codexRoot, skill.folder), skill.directory);
-    if (status !== "already linked") newlyLinked.add(skill.folder);
-    console.log(`Codex ${skill.folder}: ${status}`);
+  const links = clientLinks(clients, home, skillsDir, skills);
+  preflightLinks(links);
+  console.log(`Selected clients: ${clients.join(', ') || 'none'}`);
+  for (const [path, target] of links) {
+    if (dryRun) console.log(`Would link ${path} -> ${target}`);
+    else console.log(`${path}: ${ensureLink(path, target)}`);
   }
-
-  const agentsRoot = join(home, ".agents", "skills");
-  mkdirSync(agentsRoot, { recursive: true });
-  for (const skill of skills) {
-    const status = ensureLink(join(agentsRoot, skill.folder), skill.directory);
-    if (status !== "already linked") newlyLinked.add(skill.folder);
-    console.log(`Shared ~/.agents ${skill.folder}: ${status}`);
+  if (clients.includes('copilot')) {
+    if (dryRun) console.log(`Would register Copilot library: ${skillsDir}`);
+    else {
+      const result = run('copilot', ['skill', 'add', skillsDir], { capture: true });
+      console.log(result.stdout.trim());
+    }
   }
-
-  if (antigravityInstalled()) {
-    const antigravityPath = join(home, ".gemini", "config", "skills");
-    console.log(`Antigravity: ${ensureLink(antigravityPath, skillsDir)}`);
-  } else {
-    console.log("Antigravity: not installed; skipped global skills link.");
-  }
-
-  const copilot = spawnSync("copilot", ["skill", "add", skillsDir], {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  if (copilot.error?.code === "ENOENT") {
-    console.warn("WARN: Copilot CLI is not installed; skipped directory registration.");
-  } else if (copilot.status !== 0) {
-    throw new Error(`Copilot registration failed: ${copilot.stderr.trim()}`);
-  } else {
-    console.log(copilot.stdout.trim());
-  }
-
-  console.log(
-    "VS Code: uses the personal ~/.claude/skills location; restart VS Code after adding skills.",
-  );
-
-  if (scaffolded.length || newlyLinked.size) {
-    const added = [...newlyLinked].sort();
-    console.log(
-      `\nNewly wired: ${added.length ? added.join(", ") : "none"}` +
-        `${scaffolded.length ? `\nScaffolded ${useCaseFile} for: ${scaffolded.join(", ")}` : ""}` +
-        `\nRestart your AI clients to pick them up, then run "skills sync" to publish.`,
-    );
-  }
-
-  if (multiFileSkills(skills).length && !copilotWrapperInstalled()) {
-    console.log(
-      `\nACTION REQUIRED: Copilot CLI only reads files under the current working directory.\n` +
-        `Multi-file skills need their library on the allowed list. Add this to your shell profile:\n` +
-        `    ${copilotWrapperInstruction()}`,
-    );
+  if (!dryRun) {
+    mkdirSync(join(repoRoot, '.skillport'), { recursive: true });
+    writeFileSync(join(repoRoot, '.skillport', 'local.json'), JSON.stringify({ clients }, null, 2) + '\n');
+    console.log('Restart selected AI clients to refresh their skill inventory.');
   }
 }
 
@@ -2169,7 +2135,7 @@ async function main() {
   try {
     switch (command) {
       case "link":
-        linkAll();
+        linkAll({ dryRun: args.includes('--dry-run') });
         break;
       case "list":
         listSkills();
@@ -2214,6 +2180,8 @@ async function main() {
         if (dryRun) {
           console.log("Install dry run: would adopt the GitHub identity, link the library, and configure the shell.");
           adoptIdentity({ dryRun: true });
+          linkAll({ dryRun: true });
+          if (!noShell) ensureShellSetup({ dryRun: true });
           console.log("Install dry run: no filesystem changes were written.");
           break;
         }
@@ -2222,9 +2190,10 @@ async function main() {
           break;
         }
 
+        preflightLinks(clientLinks(selectedClients(), home, skillsDir, discoverSkills()));
         const claudeLink = join(home, ".claude", "skills");
         const claudeState = pathState(claudeLink);
-        if (claudeState && claudeState.isSymbolicLink()) {
+        if ((selectedClients().includes('claude') || selectedClients().includes('vscode')) && claudeState && claudeState.isSymbolicLink()) {
           const target = linkTarget(claudeLink);
           if (target && target !== realpathSync(skillsDir)) {
             throw new Error(
