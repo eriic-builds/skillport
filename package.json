@@ -4,7 +4,8 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "doctor": "node bin/skills.mjs doctor"
+    "doctor": "node bin/skills.mjs doctor",
+    "test": "node --test test/*.test.mjs"
   },
   "bin": {
     "skills": "./bin/skills.mjs"
