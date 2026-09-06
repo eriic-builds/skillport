@@ -1,0 +1,36 @@
+name: Runtime tests
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+        node: [20, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/package-runtime.mjs
+      - name: Verify repeatable archives across timezones
+        run: |
+          cp dist-runtime/SHA256SUMS expected-checksums
+          TZ=Pacific/Honolulu node scripts/package-runtime.mjs
+          diff expected-checksums dist-runtime/SHA256SUMS
+          cd dist-runtime
+          sha256sum --check SHA256SUMS
+      - run: tar -tzf dist-runtime/*.tar.gz
+      - run: node scripts/verify-runtime.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-preview
+          path: dist-runtime/

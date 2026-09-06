@@ -2,9 +2,11 @@
   "name": "skillport",
   "version": "0.3.0",
   "private": false,
+  "files": ["bin/", "LICENSE"],
   "type": "module",
   "scripts": {
-    "doctor": "node bin/skills.mjs doctor"
+    "doctor": "node bin/skills.mjs doctor",
+    "test": "node scripts/test.mjs"
   },
   "bin": {
     "skills": "./bin/skills.mjs"

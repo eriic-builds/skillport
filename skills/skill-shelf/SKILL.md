@@ -15,3 +15,8 @@ When the user asks for a skill that may be shelved:
 4. After confirmation, run `skills unshelve <name>...` and tell the user to restart the AI client so it discovers the newly active skills.
 
 If the user asks to put an active skill away, run `skills shelve <name>...` only after confirmation, then mention that it is now stored in `shelf/` and no longer loaded.
+
+Restart the client or begin a new session to refresh discovery. Shelving cannot
+erase instructions already loaded in an ongoing conversation. Project-local
+copies created by `skills use`, manually uploaded copies, and marketplace
+installations are independent; update or remove them separately when requested.
