@@ -22,7 +22,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { profileTarget, updateProfile, shellQuote, powershellQuote } from './profile.mjs';
-import { removeOwnedLink } from './managed-links.mjs';
+import { removeOwnedLink, ownedLink } from './managed-links.mjs';
 import { selectClients, clientLinks, preflightLinks } from './clients.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -802,7 +802,7 @@ function checkOrphanLinks(label, root, skillFolders, errors) {
     } catch {
       continue;
     }
-    if (!pointsIntoLibrary(root, linkText)) continue;
+    if (!ownedLink(linkPath, skillsDir)) continue;
     errors.push(
       `${label}: ${linkPath} is left over. It points into this library at ${linkText}, ` +
         `but no skill named "${entry.name}" exists. Remove it with: rm "${linkPath}"`,
@@ -1086,257 +1086,72 @@ function probeClient(command, args) {
 }
 
 function collectDoctorState() {
-  const errors = [];
-  const seen = new Set();
-  const skills = discoverSkills();
-  const info = [];
-  const skillState = [];
-
-  for (const skill of skills) {
-    const result = validateSkill(skill);
-    const valid = result.errors.length === 0;
-    if (seen.has(result.metadata.name)) {
-      result.errors.push(`duplicate skill name "${result.metadata.name}"`);
+  const errors = [], info = [], skillState = [];
+  const log = console.log;
+  // Existing checks are synchronous. Collect their diagnostics so JSON stdout
+  // contains exactly one document, including when a check throws.
+  console.log = (...items) => info.push(items.join(' '));
+  let clients = [];
+  try {
+    clients = selectedClients();
+    const skills = discoverSkills();
+    const names = new Set();
+    for (const skill of skills) {
+      const result = validateSkill(skill);
+      const name = String(result.metadata.name || skill.folder).toLowerCase();
+      if (names.has(name)) result.errors.push('duplicate skill name');
+      names.add(name);
+      skillState.push({ name: skill.folder, valid: result.errors.length === 0, errors: result.errors, useCaseState: useCaseState(skill) });
+      errors.push(...result.errors.map(error => skill.folder + ': ' + error));
     }
-    seen.add(result.metadata.name);
-    skillState.push({
-      name: skill.folder,
-      valid,
-      errors: result.errors,
-      useCaseState: useCaseState(skill),
-    });
-    if (result.errors.length) {
-      errors.push(`${skill.folder}: ${result.errors.join("; ")}`);
+    const folders = new Set(skills.map(skill => skill.folder));
+    if (existsSync(skillsDir)) for (const entry of readdirSync(skillsDir)) {
+      if (!folders.has(entry) && !ignoredLibraryEntries.has(entry)) errors.push('Unexpected library entry: ' + entry);
     }
-  }
-
-  const linkTargets = [
-    ["Claude Code", join(home, ".claude", "skills")],
-    ["Codex", join(home, ".codex", "skills")],
-    ["Shared ~/.agents", join(home, ".agents", "skills")],
-  ];
-  for (const [label, target] of linkTargets) {
-    const state = pathState(target);
-    if (!state) {
-      info.push(`${label}: not present`);
-    } else if (!state.isSymbolicLink()) {
-      info.push(`${label}: non-link path`);
+    for (const [path, target] of clientLinks(clients, home, skillsDir, skills)) {
+      checkLink(path, path, target, errors);
+    }
+    if (clients.includes('codex')) {
+      checkOrphanLinks('Codex', join(home, '.codex', 'skills'), folders, errors);
+      checkOrphanLinks('Shared agents', join(home, '.agents', 'skills'), folders, errors);
+    }
+    for (const client of clients) {
+      const command = client === 'vscode' ? 'code' : client;
+      const probe = probeClient(command, client === 'copilot' ? ['skill', 'list'] : ['--version']);
+      if (probe.state === 'broken') errors.push(client + ': ' + probe.detail);
+      else if (probe.state === 'missing') info.push(client + ': CLI unavailable; filesystem links checked');
+      else if (client === 'copilot') {
+        for (const skill of skills) if (!probe.stdout.includes(skill.folder)) errors.push('Copilot: skill not listed: ' + skill.folder);
+      }
+    }
+    if (clients.includes('copilot') && multiFileSkills(skills).length && !copilotWrapperInstalled()) {
+      errors.push('Copilot file allowance missing: ' + copilotWrapperInstruction());
+    }
+    for (const skill of discoverSkills(shelfDir)) {
+      if (names.has(skill.folder.toLowerCase())) errors.push('Skill exists in active library and shelf: ' + skill.folder);
+    }
+    if (existsSync(join(repoRoot, '.git'))) {
+      pluginMetadataState(errors);
+      gitState(errors);
     } else {
-      info.push(`${label}: linked`);
+      info.push('Standalone library: Git sync and plugin identity checks skipped.');
     }
+    info.push('Selected clients: ' + (clients.join(', ') || 'none'));
+    info.push('Restart clients after changing active skills. Project copies and manual uploads update separately.');
+  } catch (error) {
+    errors.push(error.message);
+  } finally {
+    console.log = log;
   }
-
-  pluginMetadataState(errors);
-  return {
-    ok: errors.length === 0,
-    errors,
-    info,
-    skills: skillState,
-    repository: gitRemoteIdentity(),
-  };
+  return { ok: errors.length === 0, errors, info, clients, skills: skillState };
 }
 
 function doctor() {
-  const errors = [];
-  const seen = new Set();
-  const skills = discoverSkills();
-
-  if (!skills.length) errors.push(`Library: no skills found under ${skillsDir}.`);
-
-  const drafts = [];
-  for (const skill of skills) {
-    const result = validateSkill(skill);
-    if (seen.has(result.metadata.name)) {
-      result.errors.push(`duplicate skill name "${result.metadata.name}"`);
-    }
-    seen.add(result.metadata.name);
-    const useCases = useCaseState(skill);
-    if (useCases === "missing") {
-      result.errors.push(
-        `missing ${useCaseFile}. Run "skills link" to scaffold it and finish wiring this skill.`,
-      );
-    } else if (useCases === "draft") {
-      drafts.push(skill.folder);
-    }
-    if (result.errors.length) {
-      errors.push(`${skill.folder}: ${result.errors.join("; ")}`);
-    } else {
-      console.log(`PASS: skill ${skill.folder}`);
-    }
-  }
-
-  if (drafts.length) {
-    console.log(
-      `INFO: ${useCaseFile} still holds auto-generated starter prompts for: ${drafts.join(", ")}.`,
-    );
-  }
-
-  pluginMetadataState(errors);
-
-  const skillFolders = new Set(skills.map((skill) => skill.folder));
-  const unexpectedEntries = readdirSync(skillsDir, { withFileTypes: true })
-    .map((entry) => entry.name)
-    .filter((name) => !skillFolders.has(name) && !ignoredLibraryEntries.has(name));
-  for (const name of unexpectedEntries) {
-    const entryPath = join(skillsDir, name);
-    if (pathState(entryPath)?.isSymbolicLink()) {
-      errors.push(
-        `Library: skills/${name} is a symlink and is ignored by every client. ` +
-          `Copy the real folder into skills/ instead, then run "skills link".`,
-      );
-      continue;
-    }
-    errors.push(
-      `Library: unexpected entry skills/${name}. Move client-owned or unrelated files out of the canonical store.`,
-    );
-  }
-
-  checkLink("Claude Code", join(home, ".claude", "skills"), skillsDir, errors);
-  const claude = probeClient("claude", ["--version"]);
-  if (claude.state === "missing") {
-    console.log("INFO: Claude Code is not installed; skipped its command and plugin checks.");
-  } else if (claude.state === "broken") {
-    errors.push(
-      `Claude Code: command exists but its version check failed${claude.detail ? `: ${claude.detail}` : "."}`,
-    );
-  } else {
-    console.log(`PASS: Claude Code command (${claude.stdout})`);
-    if (!commandSucceeded("claude", ["plugin", "validate", "--help"])) {
-      console.log(
-        "INFO: This Claude Code version does not support first-party plugin validation; skipped.",
-      );
-    } else {
-      const pluginValidation = spawnSync("claude", ["plugin", "validate", repoRoot], {
-        encoding: "utf8",
-        stdio: "pipe",
-        shell: isWindows,
-      });
-      if (pluginValidation.status !== 0) {
-        const detail = (pluginValidation.stderr || pluginValidation.stdout).trim();
-        errors.push(
-          `Claude plugin marketplace: validation failed${detail ? `: ${detail}` : "."}`,
-        );
-      } else {
-        console.log("PASS: Claude plugin marketplace");
-      }
-    }
-  }
-
-  for (const skill of skills) {
-    checkLink(
-      `Codex ${skill.folder}`,
-      join(home, ".codex", "skills", skill.folder),
-      skill.directory,
-      errors,
-    );
-    checkLink(
-      `Shared ~/.agents ${skill.folder}`,
-      join(home, ".agents", "skills", skill.folder),
-      skill.directory,
-      errors,
-    );
-  }
-
-  checkOrphanLinks("Codex links", join(home, ".codex", "skills"), skillFolders, errors);
-  checkOrphanLinks("Shared ~/.agents links", join(home, ".agents", "skills"), skillFolders, errors);
-
-  if (antigravityInstalled()) {
-    checkLink(
-      "Antigravity",
-      join(home, ".gemini", "config", "skills"),
-      skillsDir,
-      errors,
-    );
-  } else {
-    console.log("INFO: Antigravity is not installed; skipped its global skills check.");
-  }
-  const codex = probeClient("codex", ["--version"]);
-  if (codex.state === "missing") {
-    console.log(
-      "INFO: Codex CLI is not installed; its links are prepared for when you install it.",
-    );
-  } else if (codex.state === "broken") {
-    errors.push(
-      `Codex CLI: command exists but its version check failed${codex.detail ? `: ${codex.detail}` : "."}`,
-    );
-  } else {
-    console.log(`PASS: Codex CLI command (${codex.stdout})`);
-  }
-
-  const copilot = probeClient("copilot", ["skill", "list"]);
-  if (copilot.state === "missing") {
-    console.log("INFO: Copilot CLI is not installed; skipped its skill listing check.");
-  } else if (copilot.state === "broken") {
-    errors.push(
-      `Copilot CLI: skill list failed${copilot.detail ? `: ${copilot.detail}` : "."}`,
-    );
-  } else {
-    const unlisted = skills.filter((skill) => !copilot.stdout.includes(skill.folder));
-    for (const skill of unlisted) {
-      errors.push(`Copilot CLI: ${skill.folder} is not listed. Run "skills link".`);
-    }
-    if (!unlisted.length) {
-      console.log("PASS: Copilot CLI");
-    }
-  }
-
-  const multiFile = multiFileSkills(skills);
-  if (multiFile.length) {
-    const wrapper = copilotWrapperInstalled();
-    if (wrapper) {
-      console.log(`PASS: Copilot file access for multi-file skills (~/${wrapper})`);
-    } else {
-      errors.push(
-        `Copilot CLI scopes file reads to the working directory, so these multi-file skills ` +
-          `cannot read their supporting files from another project: ` +
-          `${multiFile.map((skill) => skill.folder).join(", ")}. ` +
-          `Add this line to your shell profile and restart the shell:\n` +
-          `    ${copilotWrapperInstruction()}`,
-      );
-    }
-  }
-
-  gitState(errors);
-
-  const shelved = discoverSkills(shelfDir);
-  if (shelved.length) {
-    const shelfFolders = new Set(shelved.map((skill) => skill.folder));
-    for (const skill of skills) {
-      if (shelfFolders.has(skill.folder)) {
-        errors.push(
-          `Shelf: "${skill.folder}" exists in both skills/ and shelf/. ` +
-          `Move or rename one to resolve the collision.`,
-        );
-      }
-    }
-    console.log(`INFO: ${shelved.length} skills on the shelf (use "skills shelf" to list them).`);
-  }
-
-  const totalChars = skills.reduce((sum, skill) => {
-    const validation = validateSkill(skill);
-    const desc = validation.metadata?.description || "";
-    return sum + desc.length;
-  }, 0);
-  const budgetEstimate = 8000;
-  const percentage = Math.round((totalChars / budgetEstimate) * 100);
-  console.log(`INFO: Startup budget: ${totalChars} chars in ${skills.length} skills (${percentage}% of ~${budgetEstimate}).`);
-
-  if (resolve(process.cwd()) !== repoRoot) {
-    const projectSkills = join(process.cwd(), ".claude", "skills");
-    if (existsSync(projectSkills)) {
-      console.log(
-        `INFO: project-scoped Claude skills found at ${projectSkills}; they are not published globally.`,
-      );
-    }
-  }
-
-  if (errors.length) {
-    console.error("\nDoctor found problems:");
-    for (const error of errors) console.error(`- ${error}`);
-    process.exitCode = 1;
-  } else {
-    console.log("\nAll checks passed.");
-  }
+  const state = collectDoctorState();
+  for (const message of state.info) console.log(message);
+  for (const message of state.errors) console.error('ERROR: ' + message);
+  console.log(state.ok ? 'All checks passed.' : 'Doctor found problems.');
+  if (!state.ok) process.exitCode = 1;
 }
 
 function shelveSkills(names) {
@@ -1745,6 +1560,7 @@ async function importSkill(url, options = {}) {
   const tempRoot = mkdtempSync(join(tmpdir(), "global-skills-import-"));
   const cloneDir = join(tempRoot, "repo");
   const installed = [];
+  let importCommitted = false;
   const staged = [];
   const isShelfImport = options.all;
   const targetRoot = isShelfImport ? shelfDir : skillsDir;
@@ -1889,6 +1705,7 @@ async function importSkill(url, options = {}) {
       "--",
       ...targetPaths,
     ]);
+    importCommitted = true;
     // Link only if not a shelf import; shelf imports don't need wiring.
     // If later unshelved, linkAll() will wire them.
     if (!isShelfImport) {
@@ -1899,6 +1716,14 @@ async function importSkill(url, options = {}) {
       : `Import committed locally. Run "skills sync" to publish it.`;
     console.log(msg);
   } catch (error) {
+    if (importCommitted) {
+      throw new Error(`Import was committed and its files have been retained. Client setup failed: ${error.message}. Resolve the client error, then run skills link.`);
+    }
+    if (installed.length) {
+      const paths = installed.map(entry => relative(repoRoot, entry.target));
+      const unstage = run('git', ['reset', '--', ...paths], { capture: true, allowFailure: true });
+      if (unstage.status !== 0) throw new Error(`Import failed: ${error.message}. Could not unstage imported paths; files were retained for recovery.`);
+    }
     for (const entry of installed) rmSync(entry.target, { recursive: true, force: true });
     for (const entry of staged) {
       if (entry.stage) rmSync(entry.stage, { recursive: true, force: true });
@@ -2214,6 +2039,7 @@ async function main() {
         if (args.includes("--json")) {
           const state = collectDoctorState();
           console.log(JSON.stringify(state, null, 2));
+          if (!state.ok) process.exitCode = 1;
         } else {
           doctor();
         }
