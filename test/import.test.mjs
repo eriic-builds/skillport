@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync, existsSync, readdirSync, readFileSync, appendFileSync, chmodSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readdirSync, readFileSync, appendFileSync, chmodSync, rmSync, cpSync } from 'node:fs';
 import { join, parse } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -83,6 +83,7 @@ test('native Windows import stages on library volume rather than OS temp volume'
 });
 test('standalone import needs no local Git repo and creates shelf destination', t=>{
   const s=sandbox(t);source(s);s.run('link','--clients','none');
+  rmSync(join(s.repo,'shelf'),{recursive:true});
   const result=s.run('import','https://github.com/fixture/skills','--all');
   assert.equal(result.status,0,result.stderr);
   assert.ok(existsSync(join(s.repo,'shelf','example','SKILL.md')));
@@ -123,6 +124,37 @@ test('reviewed shelf activation accepts unchanged bytes and rejects changes', t=
   assert.equal(approved.status,0,approved.stderr);
   const activated=s.run('unshelve','example');assert.equal(activated.status,0,activated.stderr);
   assert.equal(s.run('shelve','example').status,0);
+  const metadataPath=join(s.repo,'shelf','example','.source.json');
+  const metadata=readFileSync(metadataPath,'utf8');
+  writeFileSync(metadataPath,JSON.stringify({...JSON.parse(metadata),rulesetVersion:'obsolete-rules'}));
+  assert.equal(s.run('unshelve','example').status,1);
+  writeFileSync(metadataPath,metadata);
+  writeFileSync(join(s.repo,'shelf','example','added.bin'),Buffer.from([0,1,2,255]));
+  assert.equal(s.run('unshelve','example').status,1);
+  rmSync(join(s.repo,'shelf','example','added.bin'));
   appendFileSync(join(s.repo,'shelf','example','SKILL.md'),'\nchanged');
   assert.equal(s.run('unshelve','example').status,1);
+});
+test('duplicate batch names fail before installing any candidate',t=>{
+  const s=sandbox(t);source(s);
+  const dir=join(s.root,'source');
+  mkdirSync(join(dir,'nested'));
+  cpSync(join(dir,'example'),join(dir,'nested','example'),{recursive:true});
+  const git=(...args)=>execFileSync('git',args,{cwd:dir,env:s.env,stdio:'pipe'});
+  git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.test','commit','-m','duplicate');
+  const result=s.run('import','https://github.com/fixture/skills','--all');
+  assert.equal(result.status,1);assert.match(result.stderr,/Duplicate imported skill name/);
+  assert.deepEqual(readdirSync(join(s.repo,'skills')),[]);
+  assert.deepEqual(readdirSync(join(s.repo,'shelf')),[]);
+});
+test('minimal import preserves upstream HTML assets byte-for-byte',t=>{
+  const s=sandbox(t);source(s);s.run('link','--clients','none');
+  const dir=join(s.root,'source'), html='<html><body>Required template</body></html>';
+  writeFileSync(join(dir,'example','template.html'),html);
+  const git=(...args)=>execFileSync('git',args,{cwd:dir,env:s.env,stdio:'pipe'});
+  git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.test','commit','-m','asset');
+  const result=s.run('import','https://github.com/fixture/skills','--all');
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(readFileSync(join(s.repo,'shelf','example','template.html'),'utf8'),html);
+  assert.equal(existsSync(join(s.repo,'shelf','example','USE_CASES.html')),false);
 });

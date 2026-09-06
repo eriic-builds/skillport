@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, cpSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { sandbox } from './helpers/sandbox.mjs';
 
@@ -67,4 +68,17 @@ test('custom profile location survives later link reconciliation', t=>{
   assert.equal(JSON.parse(readFileSync(config)).profile,profile);
   result=s.run('link');assert.equal(result.status,0,result.stderr);
   assert.equal(JSON.parse(readFileSync(config)).profile,profile);
+});
+test('replacement runtime uses saved library without moving or overwriting skills',t=>{
+  const s=sandbox(t), library=join(s.root,"user's separate library");
+  const installed=s.run('install','--library',library,'--clients','none','--no-shell','--yes');
+  assert.equal(installed.status,0,installed.stderr);
+  assert.equal(s.run('new','personal','--library',library).status,0);
+  const skill=join(library,'skills','personal','SKILL.md'), before=readFileSync(skill,'utf8');
+  const replacement=join(s.root,'upgraded runtime');
+  cpSync(join(s.repo,'bin'),join(replacement,'bin'),{recursive:true});
+  const result=spawnSync(process.execPath,[join(replacement,'bin','skills.mjs'),'list'],{env:s.env,encoding:'utf8',timeout:15000});
+  assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/personal/);
+  assert.equal(readFileSync(skill,'utf8'),before);
+  assert.equal(existsSync(join(replacement,'skills')),false);
 });

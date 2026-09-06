@@ -964,86 +964,6 @@ function adoptIdentity(options = {}) {
   return { changed: true, identity };
 }
 
-function shellProfileTarget() {
-  if (isWindows) {
-    const candidates = [
-      join(home, "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1"),
-      join(home, "Documents", "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
-    ];
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) return candidate;
-    }
-    return join(home, "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1");
-  }
-
-  const candidates = [
-    join(home, ".bash_profile"),
-    join(home, ".zshrc"),
-    join(home, ".bashrc"),
-    join(home, ".profile"),
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return process.env.SHELL?.includes("zsh") ? join(home, ".zshrc") : join(home, ".bash_profile");
-}
-
-function shellProfileLines() {
-  const skillsLine = isWindows
-    ? `function skills { & "${repoRoot.replace(/\\/g, '\\\\')}\\bin\\skills.ps1" @args }`
-    : `alias skills='${repoRoot}/bin/skills'`;
-  const lines = [skillsLine];
-
-  if (multiFileSkills(discoverSkills()).length) {
-    lines.push(copilotWrapperInstruction());
-  }
-
-  return lines;
-}
-
-function legacyEnsureShellSetup(options = {}) {
-  const profilePath = shellProfileTarget();
-  const lines = shellProfileLines();
-  const content = existsSync(profilePath) ? readFileSync(profilePath, "utf8") : "";
-  const existing = content.split(/\r?\n/);
-  const next = [...existing];
-  let changed = false;
-
-  for (const line of lines) {
-    if (existing.some((entry) => entry.trim() === line)) {
-      continue;
-    }
-    if (existing.some((entry) => entry.includes("--add-dir") && entry.includes(repoRoot))) {
-      continue;
-    }
-    if (line.includes("--add-dir") && content.includes("--add-dir") && content.includes(repoRoot)) {
-      continue;
-    }
-    next.push(`\n# Added by skills setup\n${line}`);
-    changed = true;
-  }
-
-  if (!changed) {
-    console.log(`PASS: shell profile already configured at ${profilePath}`);
-    return { changed: false, path: profilePath };
-  }
-
-  if (options.dryRun) {
-    console.log(`Would update ${profilePath}:`);
-    for (const line of lines) console.log(`  ${line}`);
-    return { changed: true, path: profilePath, dryRun: true };
-  }
-
-  mkdirSync(dirname(profilePath), { recursive: true });
-  const backupPath = `${profilePath}.skills-backup`;
-  if (!existsSync(backupPath)) {
-    writeFileSync(backupPath, content || "");
-  }
-  writeFileSync(profilePath, `${next.join("\n")}\n`);
-  console.log(`Updated shell profile at ${profilePath}`);
-  return { changed: true, path: profilePath };
-}
-
 function ensureShellSetup(options = {}) {
   const index = process.argv.indexOf('--profile');
   if (index >= 0 && (!process.argv[index + 1] || process.argv[index + 1].startsWith('--'))) throw new Error('--profile requires a path');
@@ -1074,7 +994,7 @@ function ensureShellSetup(options = {}) {
     writeJson(configPath,{...previous,profile:profilePath});
   }
   console.log(`${options.dryRun ? 'Would configure' : changed ? 'Updated' : 'Already configured'} shell profile: ${profilePath}`);
-  console.log(`Open a new shell to use skills, or load ${quote(profilePath)} in your current shell.`);
+  console.log(`Open a new shell to use skills, or run: . ${quote(profilePath)}`);
   return { changed, path: profilePath };
 }
 
@@ -1179,6 +1099,7 @@ function collectDoctorState() {
       const command = client === 'vscode' ? 'code' : client;
       const probe = probeClient(command, client === 'copilot' ? ['skill', 'list'] : ['--version']);
       if (probe.state === 'broken') errors.push(client + ': ' + probe.detail);
+      else if (probe.state === 'missing' && client === 'copilot') errors.push('Copilot CLI is missing; install it separately or deselect copilot.');
       else if (probe.state === 'missing') info.push(client + ': CLI unavailable; filesystem links checked');
       else if (client === 'copilot') {
         for (const skill of skills) if (!probe.stdout.includes(skill.folder)) errors.push('Copilot: skill not listed: ' + skill.folder);
@@ -1448,16 +1369,9 @@ function findSkillDirectories(root) {
   if (existsSync(join(root, "SKILL.md"))) found.push(root);
   walk(root);
 
-  // Repositories commonly mirror one skill into several client directories
-  // (.claude/skills, .agents/skills, .codex/skills). Keep the least nested
-  // copy so an import takes the canonical source, not a delivery mirror.
-  const byName = new Map();
-  for (const directory of found) {
-    const depth = relative(root, directory).split(/[\\/]/).filter(Boolean).length;
-    const current = byName.get(basename(directory));
-    if (!current || depth < current.depth) byName.set(basename(directory), { directory, depth });
-  }
-  return [...byName.values()].map((entry) => entry.directory).sort();
+  // Preserve candidates so batch validation can reject ambiguous names. Even
+  // delivery mirrors may differ; silently choosing one loses the review scope.
+  return found.sort();
 }
 
 function findFiles(root, predicate) {
