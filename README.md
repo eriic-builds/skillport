@@ -4,7 +4,8 @@
 
 Skillport keeps one canonical folder of Agent Skills and connects it to
 Claude Code, Codex, GitHub Copilot, VS Code, Antigravity, and Claude Desktop.
-Add a skill once; the clients on your computer can all use the same copy.
+Selected filesystem clients share the same copy. Desktop uploads and marketplace
+installations are separate, manually refreshed copies.
 
 The source of truth is `skills/`. Each skill is a directory containing a
 `SKILL.md` file and any supporting resources it needs.
@@ -25,8 +26,9 @@ cd ~/skillport
 ./bin/skills install --yes
 ```
 
-This runs the repo identity check, links the library into the supported clients,
-and configures the local shell alias needed for multi-file skills.
+This runs the repo identity check, links the library into selected or detected
+clients, and configures a shell command. Copilot file allowances are added only
+when Copilot is selected and active skills need supporting files.
 
 **New here?** Start with the interactive guide:
 **[eriic-builds.github.io/skillport/HOW_TO_USE.html](https://eriic-builds.github.io/skillport/HOW_TO_USE.html)**.
@@ -50,7 +52,8 @@ The public repository is a template. Use GitHub's **Use this template** button
 to create your own copy first. That gives you a repository you can push to and
 sync from every computer.
 
-Install Git, GitHub CLI, and Node.js 20 or newer, then:
+The clone workflow requires Git and Node.js 20 or newer. GitHub CLI is optional;
+the following example uses it, but ordinary `git clone` also works:
 
 ```sh
 gh auth login
@@ -95,11 +98,10 @@ alias copilot='copilot --add-dir ~/skillport'
 function copilot { copilot.exe --add-dir "$HOME\skillport" @args }
 ```
 
-`skills doctor` fails while any multi-file skill is installed without this, and
-`skills link` prints the same line after wiring the clients. There is no
-persistent setting for it: `permissions-config.json` grants only `write` and
-`commands`, never read paths, and Copilot does not implicitly trust its own
-`~/.copilot/skills` directory.
+Run `skills shell-setup` to generate a quoted wrapper using the resolved Copilot
+launcher (including supported Windows npm shims). `skills doctor` checks this
+allowance only when Copilot is selected and active skills have supporting files.
+For a custom profile, pass `--profile <path>`; on PowerShell use `--profile $PROFILE`.
 
 ## Everyday use
 
@@ -108,8 +110,8 @@ Claude writes it through `~/.claude/skills` directly into this repository.
 Project skills under a project's `.claude/skills/` are not global.
 
 ```sh
-# Add a skill by dropping its folder in. skills link scaffolds its
-# USE_CASES.html and connects it to every filesystem client.
+# Add a skill by dropping its folder in. skills link connects it to
+# selected filesystem clients without generating extra documentation.
 cp -R ~/Downloads/my-skill ~/skillport/skills/
 ~/skillport/bin/skills link
 
@@ -213,14 +215,14 @@ Per-project copies go to `.claude/skills/` and `.agents/skills/`; see
 - `doctor` explains failures and their fixes.
 - `doctor` rejects unexpected files or client-owned directories at the root of
   the canonical `skills/` store.
-- `doctor` requires every skill to carry a `USE_CASES.html`, so a skill cannot
-  quietly arrive without instructions for using it.
-- `doctor` validates the Claude plugin marketplace with Claude's first-party
-  validator when Claude Code is installed.
+- `USE_CASES.html` is optional human documentation. Generate it explicitly with
+  `skills usecases` or `skills import --use-cases`.
+- In Git-backed libraries, `doctor` checks plugin identity against the origin.
 - `sync` aborts a conflicted rebase rather than leaving Git half-finished.
 - `sync` increments the Claude plugin patch version when skill content changes,
   allowing Cowork to recognize the new marketplace release.
-- `import` copies a full skill at an exact commit and never runs setup commands.
+- `import` records the source commit and never runs setup commands. Pass
+  `--commit <full-SHA>` to select a repeatable revision explicitly.
 - Skill names must be lowercase-hyphen names matching their folder and must not
   collide with Codex built-ins.
 

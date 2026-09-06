@@ -4,7 +4,7 @@ This repository is one canonical copy of your skills. Filesystem-based AI
 clients read from it directly. Claude cloud chat is the exception: it has no
 access to your computer and needs a deliberate manual upload.
 
-Three commands cover almost everything:
+These commands cover the main workflows:
 
 ```sh
 skills list                     # what do I have?
@@ -17,12 +17,12 @@ skills sync "what changed"      # save and publish
 
 ## Part 1 — Using skills
 
-### Skills are already everywhere
+### Active skills are available to selected clients
 
-After `skills link`, every skill in this library is available to Claude Code,
-Codex, Copilot CLI, Copilot in VS Code, and Antigravity on this machine. You do
-not load, enable, or import anything per session. You just describe what you
-want, and the client picks the matching skill.
+After `skills link`, active skills are wired into the clients selected on this
+machine. Restart the client to refresh discovery, then describe what you want
+or name a skill explicitly. Shelved skills are not part of that active listing.
+Use `--clients none` for storage only or choose individual integrations.
 
 ```
 "Tailor my project for this job posting."
@@ -48,14 +48,15 @@ project you are standing in, or from Copilot's built-ins.
 skills doctor
 ```
 
-This validates each skill, every client link, the Copilot registration, and
-Git state. Run it after moving machines or when a skill stops being found.
+This validates each active skill and selected client link, Copilot registration
+when selected, and Git state in a Git-backed library. Run it after moving
+machines or when a skill stops being found.
 
 It exits `0` when everything it can check is healthy and `1` when something is
 genuinely wrong, so it is safe to use in a script. A client you have not
 installed is reported as `INFO` and does not fail the run — links are
 legitimately prepared before a client exists. A client that *is* installed but
-fails, a missing or dangling link, a skill without a `USE_CASES.html`, or a
+fails, a missing or dangling selected-client link, or a
 leftover link pointing at a skill you deleted are all errors.
 
 `doctor` only reports. It never creates, repairs, or deletes anything, which is
@@ -129,9 +130,10 @@ cp -R ~/Downloads/my-skill ~/skillport/skills/
 skills link
 ```
 
-`skills link` finishes the job: it scaffolds the missing `USE_CASES.html`,
-creates the per-skill links Codex and `~/.agents` need, and prints what it
-wired. Run `skills sync` afterwards to publish and back it up.
+`skills link` creates missing links for selected clients and prints what it
+wired. It does not generate HTML documentation. Use `skills usecases <name>`
+if you want that optional guide. In a Git-backed library, run `skills sync`
+afterwards to publish and back it up.
 
 You do not have to register the folder anywhere. But half your clients see it
 before `link` runs and half do not, which is why the command is not optional.
@@ -197,8 +199,9 @@ and `description` from each skill — roughly 50–100 tokens each. The body of
 files only when the instructions reach for them. Ten skills cost about a
 paragraph of context, not ten instruction manuals.
 
-So the default — everything available everywhere — is cheap and is the right
-choice most of the time.
+Keep frequently used skills active and store occasional ones on the shelf.
+The standalone default installs no active examples; `install --starter shelf`
+adds only a small manager for finding shelved skills on demand.
 
 ### When scoping is actually worth it
 
@@ -428,7 +431,7 @@ version.
 
 | Command | What it does |
 | --- | --- |
-| `skills link` | Connects every filesystem client to this library. Run once per machine. |
+| `skills link` | Reconciles this machine's selected integrations without generating extra files. |
 | `skills list` | Lists library skills with descriptions. |
 | `skills usecases [name]...` | Writes `USE_CASES.html`, the human-facing page for a skill. Add `--force` to overwrite. |
 | `skills use <name>...` | Copies skills into the current project. |

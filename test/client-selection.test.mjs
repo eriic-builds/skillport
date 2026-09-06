@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sandbox } from './helpers/sandbox.mjs';
 
@@ -39,4 +39,22 @@ test('unknown client fails before changes', t => {
   const s=sandbox(t); s.skill('example');
   assert.equal(s.run('link','--clients','claudde').status,1);
   assert.deepEqual(readdirSync(s.home),[]);
+});
+test('blocked ancestor is detected before earlier integrations are created', t=>{
+  const s=sandbox(t);s.skill('example');
+  writeFileSync(join(s.home,'.agents'),'personal file');
+  const result=s.run('install','--clients','claude,codex','--no-shell','--yes');
+  assert.equal(result.status,1);assert.match(result.stderr,/not a directory/);
+  assert.equal(existsSync(join(s.home,'.claude')),false);
+  assert.equal(existsSync(join(s.home,'.codex')),false);
+});
+test('invalid shell profile blocks install before client writes', t=>{
+  const s=sandbox(t);s.skill('example');
+  const profile=join(s.home,'custom-profile');
+  writeFileSync(profile,'# >>> Skillport managed setup >>>\n');
+  const result=s.run('install','--clients','codex','--profile',profile,'--yes');
+  assert.equal(result.status,1);assert.match(result.stderr,/Incomplete/);
+  assert.equal(existsSync(join(s.home,'.codex')),false);
+  assert.equal(existsSync(join(s.home,'.agents')),false);
+  assert.equal(existsSync(join(s.repo,'.skillport')),false);
 });

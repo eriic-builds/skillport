@@ -23,6 +23,7 @@ export function updateProfile(path, lines, dryRun = false) {
   const block = [start, ...lines, end].join(newline);
   const begin = content.indexOf(start);
   const finish = content.indexOf(end);
+  if (begin >= 0 && (content.indexOf(start,begin+start.length)>=0 || content.indexOf(end,finish+end.length)>=0)) throw new Error('Duplicate Skillport profile blocks; keep one complete managed block before retrying.');
   if ((begin < 0) !== (finish < 0) || (begin >= 0 && finish < begin)) throw new Error('Incomplete Skillport profile block; restore its markers before retrying.');
   const next = begin >= 0
     ? content.slice(0, begin) + block + content.slice(finish + end.length)

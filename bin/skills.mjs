@@ -754,6 +754,9 @@ function linkAll({ dryRun = false } = {}) {
   const skills = discoverSkills();
   const links = clientLinks(clients, home, skillsDir, skills);
   preflightLinks(links);
+  if (clients.includes('copilot') && !resolveCommand('copilot')) {
+    throw new Error('Selected Copilot executable is missing; install it separately or deselect copilot.');
+  }
   if (clients.includes('codex')) {
     const active = new Set(skills.map(skill => skill.folder));
     for (const client of ['.codex','.agents']) {
@@ -2138,6 +2141,9 @@ async function main() {
         }
 
         preflightLinks(clientLinks(selectedClients(), home, skillsDir, discoverSkills()));
+        // Preview validates shell configuration before library or client writes.
+        if (!noShell) ensureShellSetup({dryRun:true});
+        if (selectedClients().includes('copilot') && !resolveCommand('copilot')) throw new Error('Selected Copilot executable is missing; install it separately or deselect copilot.');
         const claudeLink = join(home, ".claude", "skills");
         const claudeState = pathState(claudeLink);
         if ((selectedClients().includes('claude') || selectedClients().includes('vscode')) && claudeState && claudeState.isSymbolicLink()) {

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, lstatSync, realpathSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, lstatSync, realpathSync, statSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 
 export const clientNames = ['claude','codex','copilot','vscode','antigravity'];
 export function selectClients({args, home, repo, available = () => false}) {
@@ -33,6 +33,17 @@ export function clientLinks(clients, home, skillsRoot, skills) {
 export function preflightLinks(links) {
   const errors=[];
   for(const [path,target] of links) {
+    for(let parent=dirname(path);dirname(parent)!==parent;parent=dirname(parent)) {
+      try {
+        lstatSync(parent);
+        if(!statSync(parent).isDirectory()) errors.push(`${parent}: parent is not a directory`);
+        break;
+      } catch(error) {
+        if(error.code!=='ENOENT') { errors.push(`${parent}: ${error.message}`);break; }
+        // A dangling ancestor link is different from an absent directory.
+        try { if(lstatSync(parent).isSymbolicLink()) { errors.push(`${parent}: dangling parent link`);break; } } catch {}
+      }
+    }
     let state;
     try { state=lstatSync(path); } catch(error) { if(error.code==='ENOENT') continue; errors.push(`${path}: ${error.message}`); continue; }
     if(!state.isSymbolicLink()) { errors.push(`${path}: existing real file or directory`); continue; }
