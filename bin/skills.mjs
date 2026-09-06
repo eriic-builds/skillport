@@ -24,9 +24,11 @@ import { fileURLToPath } from "node:url";
 import { profileTarget, updateProfile, shellQuote, powershellQuote } from './profile.mjs';
 import { removeOwnedLink, ownedLink } from './managed-links.mjs';
 import { selectClients, clientLinks, preflightLinks } from './clients.mjs';
+import { librarySettings } from './library.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(scriptDir, "..");
+const settings = librarySettings({args:process.argv.slice(2), runtime:resolve(scriptDir,'..'), home:homedir()});
+const repoRoot = settings.library;
 const skillsDir = join(repoRoot, "skills");
 const shelfDir = join(repoRoot, "shelf");
 const pluginManifestPath = join(repoRoot, ".claude-plugin", "plugin.json");
@@ -305,7 +307,7 @@ function buildReviewToken({ source, commit, selection, rulesetVersion, files }) 
 }
 
 function discoverSkills(root = skillsDir) {
-  mkdirSync(root, { recursive: true });
+  if (!existsSync(root)) return [];
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
@@ -1003,8 +1005,8 @@ function ensureShellSetup(options = {}) {
   const profilePath = profileTarget({ home, windows: isWindows, explicit: index >= 0 ? resolve(process.argv[index + 1]) : undefined });
   const quote = isWindows ? powershellQuote : shellQuote;
   const lines = [isWindows
-    ? `function skills { & ${quote(process.execPath)} ${quote(join(scriptDir, 'skills.mjs'))} @args }`
-    : `skills() { ${quote(process.execPath)} ${quote(join(scriptDir, 'skills.mjs'))} "$@"; }`];
+    ? `function skills { & ${quote(process.execPath)} ${quote(join(scriptDir, 'skills.mjs'))} --library ${quote(repoRoot)} @args }`
+    : `skills() { ${quote(process.execPath)} ${quote(join(scriptDir, 'skills.mjs'))} --library ${quote(repoRoot)} "$@"; }`];
   if (!profilePath) {
     console.log('Shell profile could not be determined. Use --profile <path> or add this manually:');
     console.log(lines.join('\n'));
@@ -1273,6 +1275,7 @@ function listShelf() {
 }
 
 function syncRepo(message) {
+  if (!existsSync(join(repoRoot,'.git'))) throw new Error('Sync requires a Git-backed library. Use a clone of your own repository with --library.');
   const operationMarkers = [
     ["rebase", "rebase-merge"],
     ["rebase", "rebase-apply"],
@@ -1948,6 +1951,8 @@ Commands:
                        Name a skill, or pass --all, for repositories holding several.
 
 Options:
+  --library <path>     Use a separate writable skill library
+  --clients <names>    auto, none, or claude,codex,copilot,vscode,antigravity
   --force              With "usecases", overwrite files that already exist
   --all                With "import", take every skill in the repository
   --reviewed <token>   Re-approve an import after reviewing the prior security findings
@@ -1956,7 +1961,7 @@ Options:
 }
 
 async function main() {
-  const [command, ...args] = process.argv.slice(2);
+  const [command, ...args] = settings.args;
   try {
     switch (command) {
       case "link":
@@ -2004,7 +2009,8 @@ async function main() {
         const confirm = args.includes("--yes") || dryRun;
         if (dryRun) {
           console.log("Install dry run: would adopt the GitHub identity, link the library, and configure the shell.");
-          adoptIdentity({ dryRun: true });
+          if (existsSync(join(repoRoot,'.git'))) adoptIdentity({ dryRun: true });
+          console.log(`Would initialize library at ${repoRoot}`);
           linkAll({ dryRun: true });
           if (!noShell) ensureShellSetup({ dryRun: true });
           console.log("Install dry run: no filesystem changes were written.");
@@ -2028,11 +2034,15 @@ async function main() {
           }
         }
 
-        adoptIdentity({ dryRun: false });
+        mkdirSync(skillsDir, {recursive:true});
+        mkdirSync(shelfDir, {recursive:true});
+        if (existsSync(join(repoRoot,'.git'))) adoptIdentity({ dryRun: false });
         linkAll();
         if (!noShell) {
           ensureShellSetup({ dryRun: false });
         }
+        mkdirSync(dirname(settings.config), {recursive:true});
+        writeJson(settings.config, {library:repoRoot});
         break;
       }
       case "doctor":

@@ -2,6 +2,7 @@
   "name": "skillport",
   "version": "0.3.0",
   "private": false,
+  "files": ["bin/", "LICENSE"],
   "type": "module",
   "scripts": {
     "doctor": "node bin/skills.mjs doctor",
