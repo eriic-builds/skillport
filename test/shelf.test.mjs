@@ -70,3 +70,13 @@ test('shelf round trips preserve system, foreign and independent project content
   assert.equal(readFileSync(join(foreign,'keep.txt'),'utf8'),'Personal bytes');
   assert.equal(readFileSync(join(project,'SKILL.md'),'utf8'),before);
 });
+test('case-folded shelf destinations are conflicts on every filesystem',t=>{
+  for(const command of ['shelve','unshelve']) {
+    const s=sandbox(t);s.skill('example',command==='unshelve');
+    const target=join(s.repo,command==='unshelve'?'skills':'shelf','EXAMPLE');mkdirSync(target);
+    writeFileSync(join(target,'personal.txt'),'Keep me');
+    const result=s.run(command,'example');assert.equal(result.status,1);
+    assert.equal(readFileSync(join(target,'personal.txt'),'utf8'),'Keep me');
+    assert.ok(existsSync(join(s.repo,command==='unshelve'?'shelf':'skills','example','SKILL.md')));
+  }
+});

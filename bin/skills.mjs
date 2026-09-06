@@ -1148,7 +1148,7 @@ function shelveSkills(names) {
     if (!skillMap.has(name)) {
       throw new Error(`Skill "${name}" not found in skills/`);
     }
-    if (shelvedMap.has(name) || pathState(join(shelfDir, name))) {
+    if (shelvedMap.has(name) || readdirSync(shelfDir).some(entry=>entry.toLowerCase()===name.toLowerCase()) || pathState(join(shelfDir, name))) {
       throw new Error(`Skill "${name}" is already shelved`);
     }
     if (name === "skill-shelf") {
@@ -1186,7 +1186,7 @@ function unshelveSkills(names) {
     if (!shelvedMap.has(name)) {
       throw new Error(`Skill "${name}" not found in shelf/`);
     }
-    if (skillMap.has(name) || pathState(join(skillsDir, name))) {
+    if (skillMap.has(name) || readdirSync(skillsDir).some(entry=>entry.toLowerCase()===name.toLowerCase()) || pathState(join(skillsDir, name))) {
       throw new Error(`Skill "${name}" is already active in skills/`);
     }
   }
