@@ -82,3 +82,15 @@ test('replacement runtime uses saved library without moving or overwriting skill
   assert.equal(readFileSync(skill,'utf8'),before);
   assert.equal(existsSync(join(replacement,'skills')),false);
 });
+test('core standalone workflow needs Node alone and Git failure is actionable',t=>{
+  const s=sandbox(t);
+  for(const key of Object.keys(s.env)) if(key.toLowerCase()==='path') s.env[key]='';
+  let result=s.run('install','--clients','none','--no-shell','--yes');assert.equal(result.status,0,result.stderr);
+  s.skill('example',true);
+  for(const args of [['--help'],['list'],['shelf'],['unshelve','example'],['link'],['shelve','example'],['doctor','--json']]) {
+    result=s.run(...args);assert.equal(result.status,0,result.stderr);
+  }
+  result=s.run('import','https://github.com/fixture/skills','--all');
+  assert.equal(result.status,1);assert.match(result.stderr,/Executable not found: git/);
+  assert.equal(readdirSync(s.repo).some(name=>name.startsWith('.skillport-import-')),false);
+});

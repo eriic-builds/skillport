@@ -23,7 +23,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { profileTarget, updateProfile, shellQuote, powershellQuote } from './profile.mjs';
 import { removeOwnedLink, ownedLink } from './managed-links.mjs';
-import { selectClients, clientLinks, preflightLinks } from './clients.mjs';
+import { selectClients, clientLinks, preflightLinks, clientRegistry, manualIntegrations } from './clients.mjs';
 import { librarySettings } from './library.mjs';
 import { moveBatch } from './transaction.mjs';
 
@@ -250,7 +250,7 @@ function findReviewableFiles(root) {
       }
       if (entry.isFile()) {
         const lower = entry.name.toLowerCase();
-        if (/ /.test(entry.name)) continue;
+        if (/\x00/.test(entry.name)) continue;
         if (/(^|\.)\.(git|DS_Store)|~$/.test(lower)) continue;
         if (!/\.(md|txt|js|ts|tsx|jsx|mjs|cjs|json|yaml|yml|bash|sh|zsh|ps1|py|env|ini|cfg|toml|html|xml)$/i.test(lower)) {
           continue;
@@ -772,6 +772,7 @@ function linkAll({ dryRun = false } = {}) {
     }
   }
   console.log(`Selected clients: ${clients.join(', ') || 'none'}`);
+  if (dryRun) for(const instruction of manualIntegrations) console.log('Manual only: '+instruction);
   for (const [path, target] of links) {
     if (dryRun) console.log(`Would link ${path} -> ${target}`);
     else console.log(`${path}: ${ensureLink(path, target)}`);
@@ -1096,7 +1097,7 @@ function collectDoctorState() {
       checkOrphanLinks('Shared agents', join(home, '.agents', 'skills'), folders, errors);
     }
     for (const client of clients) {
-      const command = client === 'vscode' ? 'code' : client;
+      const command = clientRegistry[client].command;
       const probe = probeClient(command, client === 'copilot' ? ['skill', 'list'] : ['--version']);
       if (probe.state === 'broken') errors.push(client + ': ' + probe.detail);
       else if (probe.state === 'missing' && client === 'copilot') errors.push('Copilot CLI is missing; install it separately or deselect copilot.');

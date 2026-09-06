@@ -1,7 +1,18 @@
 import { existsSync, readFileSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-export const clientNames = ['claude','codex','copilot','vscode','antigravity'];
+export const clientRegistry = {
+  claude: {command:'claude',hint:'.claude',roots:['.claude/skills'],mode:'root'},
+  codex: {command:'codex',hint:'.codex',roots:['.codex/skills','.agents/skills'],mode:'per-skill'},
+  copilot: {command:'copilot',hint:'.copilot',roots:[],mode:'registration'},
+  vscode: {command:'code',hint:'.vscode',roots:['.claude/skills'],mode:'root'},
+  antigravity: {command:'antigravity',hint:'.gemini/antigravity',roots:['.gemini/config/skills'],mode:'root'},
+};
+export const manualIntegrations = [
+  'Cowork: install the marketplace manually, then refresh and update it after sync.',
+  'Desktop Chat uploads are independent snapshots; upload updated copies manually.',
+];
+export const clientNames = Object.keys(clientRegistry);
 export function selectClients({args, home, repo, available = () => false}) {
   const index=args.indexOf('--clients');
   let value=index < 0 ? undefined : args[index+1];
@@ -13,8 +24,7 @@ export function selectClients({args, home, repo, available = () => false}) {
   }
   if(value === 'none') return [];
   if(value === undefined || value === 'auto') {
-    const hints={claude:'.claude',codex:'.codex',copilot:'.copilot',vscode:'.vscode',antigravity:'.gemini/antigravity'};
-    return clientNames.filter(name=>existsSync(join(home,hints[name])) || available(name==='vscode'?'code':name));
+    return clientNames.filter(name=>existsSync(join(home,clientRegistry[name].hint)) || available(clientRegistry[name].command));
   }
   const names=[...new Set(value.split(','))];
   const invalid=names.filter(name=>!clientNames.includes(name));
@@ -23,11 +33,15 @@ export function selectClients({args, home, repo, available = () => false}) {
 }
 
 export function clientLinks(clients, home, skillsRoot, skills) {
-  const links=[];
-  if(clients.includes('claude') || clients.includes('vscode')) links.push([join(home,'.claude','skills'),skillsRoot]);
-  if(clients.includes('codex')) for(const skill of skills) for(const directory of ['.codex','.agents']) links.push([join(home,directory,'skills',skill.folder),skill.directory]);
-  if(clients.includes('antigravity')) links.push([join(home,'.gemini','config','skills'),skillsRoot]);
-  return links;
+  const links=new Map();
+  for(const name of clients) {
+    const client=clientRegistry[name];
+    for(const root of client.roots) {
+      if(client.mode==='per-skill') for(const skill of skills) links.set(join(home,root,skill.folder),skill.directory);
+      else links.set(join(home,root),skillsRoot);
+    }
+  }
+  return [...links];
 }
 
 export function preflightLinks(links) {
