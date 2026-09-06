@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, statSync, utimesSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync, chmodSync, utimesSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,13 +21,19 @@ try {
       const path=join(dir,entry.name);
       if(entry.isDirectory()) walk(path);
       else files.push(relative(temporary,path));
+      chmodSync(path,entry.isDirectory() || relative(stage,path)==='bin/skills' || relative(stage,path)==='bin/skills.mjs' ? 0o755 : 0o644);
       utimesSync(path,315532800,315532800);
     }
   };
   walk(stage);
+  chmodSync(stage,0o755);
   const stem='skillport-'+pkg.version;
-  execFileSync('tar',['--sort=name','--mtime=@315532800','--owner=0','--group=0','--numeric-owner','-czf',join(output,stem+'.tar.gz'),'-C',temporary,'skillport']);
-  execFileSync('zip',['-X','-q',join(output,stem+'.zip'),...files],{cwd:temporary});
+  // Build fresh archives: zip updates existing files and could otherwise retain
+  // removed runtime members from a previous build. Normalize timezone as well.
+  const archiveEnv={...process.env,TZ:'UTC',LC_ALL:'C'};
+  execFileSync('tar',['--sort=name','--mtime=@315532800','--owner=0','--group=0','--numeric-owner','-czf',join(temporary,stem+'.tar.gz'),'-C',temporary,'skillport'],{env:archiveEnv});
+  execFileSync('zip',['-X','-q',join(temporary,stem+'.zip'),...files],{cwd:temporary,env:archiveEnv});
+  for(const extension of ['.tar.gz','.zip']) copyFileSync(join(temporary,stem+extension),join(output,stem+extension));
   const archives=[stem+'.tar.gz',stem+'.zip'].map(name=>{
     const bytes=readFileSync(join(output,name));
     if(bytes.length>250000) throw new Error('Runtime archive exceeds 250 KB: '+name);

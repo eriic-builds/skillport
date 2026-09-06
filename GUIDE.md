@@ -514,3 +514,12 @@ manually uploaded Chat skills require separate updates.
 Reviewed shelf imports can activate while their content and review rules remain
 unchanged. Editing a skill invalidates that approval. Review checks identify
 patterns worth inspecting; they do not prove arbitrary imported code safe.
+# Reproducible, minimal imports
+
+Import copies the skill's required assets without generating an extra HTML guide.
+Use `skills import <GitHub URL> --all --use-cases` to opt into generated
+`USE_CASES.html` documentation. Existing upstream HTML assets are always preserved.
+For repeatable review, pass `--commit <full-40-character-SHA>` on both the initial
+import and the retry with `--reviewed <token>`. Skillport fetches and verifies that
+exact commit; it fails if the server cannot provide it. Without `--commit`, import
+uses the remote HEAD and a changed source invalidates the previous review token.

@@ -1632,6 +1632,13 @@ async function importSkill(url, options = {}) {
       );
     }
     run("git", ["clone", "--depth", "1", url, cloneDir], { cwd: tempRoot });
+    if (options.commit) {
+      run("git", ["fetch", "--depth", "1", "origin", options.commit], { cwd: cloneDir });
+      run("git", ["checkout", "--detach", options.commit], { cwd: cloneDir });
+      if (capture("git", ["rev-parse", "HEAD"], { cwd: cloneDir }).toLowerCase() !== options.commit.toLowerCase()) {
+        throw new Error("Fetched source does not match the requested commit.");
+      }
+    }
     const candidates = findSkillDirectories(cloneDir);
     if (!candidates.length) throw new Error("No SKILL.md directories found in the repository.");
     const chosen = options.all
@@ -1678,7 +1685,7 @@ async function importSkill(url, options = {}) {
       if (stagedResult.errors.length) {
         throw new Error(`${skill.folder}: ${stagedResult.errors.join("; ")}`);
       }
-      writeUseCases(stagedSkill, multiFileSkills([stagedSkill]).length > 0);
+      if (options.useCases) writeUseCases(stagedSkill, multiFileSkills([stagedSkill]).length > 0);
 
       const audit = auditSkillForSecurity(stage);
       const reviewToken = buildReviewToken({
@@ -2020,6 +2027,8 @@ Options:
   --force              With "usecases", overwrite files that already exist
   --all                With "import", take every skill in the repository
   --reviewed <token>   Re-approve an import after reviewing the prior security findings
+  --commit <sha>       With import, fetch an exact full 40-character commit SHA
+  --use-cases          With import, generate optional USE_CASES.html documentation
   --dry-run            Preview shell and install changes without writing them
   --yes                Confirm non-interactive install actions`);
 }
@@ -2122,20 +2131,27 @@ async function main() {
         syncRepo(args.join(" "));
         break;
       case "import": {
-        const reviewedIndex = args.indexOf("--reviewed");
-        const reviewedToken = reviewedIndex >= 0 ? args[reviewedIndex + 1] : null;
-        const filteredArgs = reviewedIndex >= 0
-          ? args.filter((_, index) => index !== reviewedIndex && index !== reviewedIndex + 1)
-          : args;
-        const positional = filteredArgs.filter((arg) => !arg.startsWith("--"));
-        if (!positional[0]) throw new Error("Import requires a GitHub repository URL.");
-        if (reviewedIndex >= 0 && !reviewedToken) {
-          throw new Error("Import requires a value after --reviewed.");
+        const values = {}, positional = [], flags = new Set();
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          if (["--reviewed", "--commit"].includes(arg)) {
+            if (values[arg] || !args[i + 1] || args[i + 1].startsWith("--")) {
+              throw new Error(`Import requires exactly one value after ${arg}.`);
+            }
+            values[arg] = args[++i];
+          } else if (["--all", "--use-cases"].includes(arg)) flags.add(arg);
+          else if (arg.startsWith("--")) throw new Error(`Unknown import option: ${arg}`);
+          else positional.push(arg);
         }
+        if (!positional[0]) throw new Error("Import requires a GitHub repository URL.");
+        if (positional.length > 2 || (flags.has("--all") && positional[1])) throw new Error("Choose one skill name or --all, not both.");
+        if (values["--commit"] && !/^[a-f0-9]{40}$/i.test(values["--commit"])) throw new Error("--commit requires a full 40-character commit SHA.");
         await importSkill(positional[0], {
           only: positional[1],
-          all: filteredArgs.includes("--all"),
-          reviewed: reviewedToken,
+          all: flags.has("--all"),
+          useCases: flags.has("--use-cases"),
+          reviewed: values["--reviewed"],
+          commit: values["--commit"],
         });
         break;
       }
