@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execute, resolveCommand, npmShimTarget } from './command.mjs';
 import {
   cpSync,
   existsSync,
@@ -53,7 +53,7 @@ function fail(message) {
 
 function run(command, args, options = {}) {
   console.log(`> ${command} ${args.join(" ")}`);
-  const result = spawnSync(command, args, {
+  const result = execute(command, args, {
     cwd: options.cwd ?? repoRoot,
     encoding: "utf8",
     stdio: options.capture ? "pipe" : "inherit",
@@ -69,11 +69,14 @@ function run(command, args, options = {}) {
 }
 
 function capture(command, args, options = {}) {
-  return execFileSync(command, args, {
+  const result = execute(command, args, {
     cwd: options.cwd ?? repoRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-  }).trim();
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`${command} failed: ${result.stderr || result.status}`);
+  return result.stdout.trim();
 }
 
 function pathState(path) {
@@ -735,7 +738,7 @@ function removeLinks(skillName) {
 
 function selectedClients() {
   return selectClients({ args: process.argv.slice(2), home, repo: repoRoot, available: command => {
-    const probe = spawnSync(command, ['--version'], { encoding: 'utf8', timeout: 3000 });
+    const probe = execute(command, ['--version'], { encoding: 'utf8', timeout: 3000 });
     return !probe.error && probe.status === 0;
   }});
 }
@@ -1038,6 +1041,15 @@ function ensureShellSetup(options = {}) {
   const lines = [isWindows
     ? `function skills { & ${quote(process.execPath)} ${quote(join(scriptDir, 'skills.mjs'))} --library ${quote(repoRoot)} @args }`
     : `skills() { ${quote(process.execPath)} ${quote(join(scriptDir, 'skills.mjs'))} --library ${quote(repoRoot)} "$@"; }`];
+  if (selectedClients().includes('copilot') && multiFileSkills(discoverSkills()).length) {
+    const launcher = resolveCommand('copilot');
+    if (!launcher) throw new Error('Selected Copilot executable is missing; install it or deselect copilot.');
+    const script = isWindows && /\.(cmd|bat)$/i.test(launcher) ? npmShimTarget(launcher) : null;
+    const invocation = script ? `${quote(process.execPath)} ${quote(script)}` : quote(launcher);
+    lines.push(isWindows
+      ? `function copilot { & ${invocation} --add-dir ${quote(repoRoot)} @args }`
+      : `copilot() { ${invocation} --add-dir ${quote(repoRoot)} "$@"; }`);
+  }
   if (!profilePath) {
     console.log('Shell profile could not be determined. Use --profile <path> or add this manually:');
     console.log(lines.join('\n'));
@@ -1095,20 +1107,18 @@ function pluginMetadataState(errors) {
 }
 
 function commandSucceeded(command, args) {
-  const result = spawnSync(command, args, {
+  const result = execute(command, args, {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: "pipe",
-    shell: isWindows,
   });
   return !result.error && result.status === 0;
 }
 
 function probeClient(command, args) {
-  const result = spawnSync(command, args, {
+  const result = execute(command, args, {
     encoding: "utf8",
     stdio: "pipe",
-    shell: isWindows,
   });
   if (result.error?.code === "ENOENT") return { state: "missing" };
   if (result.error) return { state: "broken", detail: result.error.message };
