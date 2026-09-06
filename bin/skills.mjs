@@ -2068,10 +2068,12 @@ async function main() {
       case "list":
         listSkills();
         break;
-      case "new":
-        if (args.length !== 1) throw new Error('new requires exactly one skill name');
-        newSkill(args[0],{useCases:args.includes('--use-cases')});
+      case "new": {
+        const names=args.filter(arg=>arg!=='--use-cases');
+        if (names.length !== 1) throw new Error('new requires exactly one skill name and optional --use-cases');
+        newSkill(names[0],{useCases:args.includes('--use-cases')});
         break;
+      }
       case "shelf":
         listShelf();
         break;
