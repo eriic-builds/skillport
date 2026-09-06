@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "doctor": "node bin/skills.mjs doctor",
-    "test": "node --test test/*.test.mjs"
+    "test": "node scripts/test.mjs"
   },
   "bin": {
     "skills": "./bin/skills.mjs"

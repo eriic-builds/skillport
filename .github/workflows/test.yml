@@ -13,3 +13,16 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/package-runtime.mjs
+      - run: tar -tzf dist-runtime/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-preview
+          path: dist-runtime/
