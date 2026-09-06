@@ -34,3 +34,25 @@ test('standalone sync reports Git requirement without initialization', t => {
   assert.match(result.stderr,/Git-backed library/);
   assert.equal(existsSync(join(s.repo,'.git')),false);
 });
+test('optional shelf starter is minimal, idempotent and dry-run safe', t=>{
+  const s=sandbox(t), library=join(s.root,'starter library');
+  const args=['install','--library',library,'--starter','shelf','--clients','none','--no-shell'];
+  let result=s.run(...args,'--dry-run');
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(existsSync(library),false);
+  result=s.run(...args,'--yes');
+  assert.equal(result.status,0,result.stderr);
+  assert.deepEqual(readdirSync(join(library,'skills')),['skill-shelf']);
+  assert.deepEqual(readdirSync(join(library,'skills','skill-shelf')),['SKILL.md']);
+  assert.deepEqual(readdirSync(join(library,'shelf')),[]);
+  result=s.run(...args,'--yes');
+  assert.equal(result.status,0,result.stderr);
+});
+test('starter installation preserves existing user skill', t=>{
+  const s=sandbox(t), path=s.skill('skill-shelf',false,'Custom user content');
+  const before=readFileSync(join(path,'SKILL.md'),'utf8');
+  const result=s.run('install','--starter','shelf','--clients','none','--no-shell','--yes');
+  assert.equal(result.status,1);
+  assert.match(result.stderr,/Refusing to overwrite/);
+  assert.equal(readFileSync(join(path,'SKILL.md'),'utf8'),before);
+});

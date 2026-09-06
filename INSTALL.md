@@ -2,7 +2,8 @@
 
 ## Minimal standalone library
 
-The runtime ZIP/tar.gz contains only the CLI, license, and runtime metadata.
+The runtime ZIP/tar.gz contains only the CLI, license, runtime metadata, and a
+small optional shelf-manager template.
 It does not include the website, Git history, an AI application, or a collection
 of active skills. Node.js 20 or newer must already be installed. There is no
 `npm install` step and no third-party runtime dependency.
@@ -33,6 +34,11 @@ Add `--no-shell` to skip shell setup, or `--dry-run` to preview without writes.
 
 The empty standalone library starts with no active examples. Add your own skill
 with `node bin/skills.mjs --library "$HOME/skillport" new my-skill`.
+Add `--starter shelf` to the install command to activate only the shelf manager.
+It helps find shelved skills on demand without listing every skill to the AI at
+startup. Existing custom shelf managers are never overwritten. Client discovery
+may require a restart; shelving does not erase content from an ongoing chat or
+remove independent project-local copies.
 Git is needed for imports and for Git-backed sync, but not for standalone
 listing, linking, shelving, or health checks. GitHub CLI is optional.
 

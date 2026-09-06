@@ -2023,6 +2023,7 @@ Commands:
 
 Options:
   --library <path>     Use a separate writable skill library
+  --starter shelf     With install, add only the optional shelf manager
   --clients <names>    auto, none, or claude,codex,copilot,vscode,antigravity
   --force              With "usecases", overwrite files that already exist
   --all                With "import", take every skill in the repository
@@ -2078,12 +2079,34 @@ async function main() {
         break;
       case "install": {
         const dryRun = args.includes("--dry-run");
+        const starterIndices = args.flatMap((arg,index)=>arg === '--starter' ? [index] : []);
+        if (starterIndices.length > 1 || (starterIndices.length && args[starterIndices[0]+1] !== 'shelf')) {
+          throw new Error('Use --starter shelf exactly once to install the optional shelf manager.');
+        }
+        const starter = starterIndices.length > 0;
+        const starterSource = join(scriptDir,'templates','skill-shelf');
+        const starterTarget = join(skillsDir,'skill-shelf');
+        let addStarter = starter;
+        if (starter) {
+          if (pathState(join(shelfDir,'skill-shelf'))) throw new Error('skill-shelf already exists on the shelf; activate it explicitly instead.');
+          if (pathState(starterTarget)) {
+            if (lstatSync(starterTarget).isSymbolicLink() || !existsSync(join(starterTarget,'SKILL.md')) ||
+                readFileSync(join(starterTarget,'SKILL.md'),'utf8') !== readFileSync(join(starterSource,'SKILL.md'),'utf8')) {
+              throw new Error('Refusing to overwrite an existing skill-shelf. Keep it or choose a different library.');
+            }
+            addStarter = false;
+          }
+          const plannedSkills = discoverSkills();
+          if (addStarter) plannedSkills.push({folder:'skill-shelf',directory:starterTarget});
+          preflightLinks(clientLinks(selectedClients(),home,skillsDir,plannedSkills));
+        }
         const noShell = args.includes("--no-shell");
         const confirm = args.includes("--yes") || dryRun;
         if (dryRun) {
           console.log("Install dry run: would adopt the GitHub identity, link the library, and configure the shell.");
           if (existsSync(join(repoRoot,'.git'))) adoptIdentity({ dryRun: true });
           console.log(`Would initialize library at ${repoRoot}`);
+          if (addStarter) console.log('Would add only the skill-shelf starter.');
           linkAll({ dryRun: true });
           if (!noShell) ensureShellSetup({ dryRun: true });
           console.log("Install dry run: no filesystem changes were written.");
@@ -2109,6 +2132,7 @@ async function main() {
 
         mkdirSync(skillsDir, {recursive:true});
         mkdirSync(shelfDir, {recursive:true});
+        if (addStarter) cpSync(starterSource,starterTarget,{recursive:true,errorOnExist:true,force:false});
         if (existsSync(join(repoRoot,'.git'))) adoptIdentity({ dryRun: false });
         linkAll();
         if (!noShell) {
