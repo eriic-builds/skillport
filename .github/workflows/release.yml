@@ -15,6 +15,7 @@ jobs:
           node-version: 24
       - run: npm test
       - run: node scripts/package-runtime.mjs
+      - run: node scripts/verify-runtime.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: skillport-runtime

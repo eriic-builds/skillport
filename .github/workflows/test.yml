@@ -29,6 +29,7 @@ jobs:
           cd dist-runtime
           sha256sum --check SHA256SUMS
       - run: tar -tzf dist-runtime/*.tar.gz
+      - run: node scripts/verify-runtime.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: runtime-preview
