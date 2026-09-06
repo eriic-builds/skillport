@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-export function sandbox(t) {
-  const root = mkdtempSync(join(tmpdir(), 'skillport-cli-'));
+export function sandbox(t, {base=tmpdir()} = {}) {
+  const root = mkdtempSync(join(base, 'skillport-cli-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const repo = join(root, "library space's"), home = join(root, 'home');
   mkdirSync(repo); mkdirSync(home);

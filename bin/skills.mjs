@@ -1661,6 +1661,13 @@ async function importSkill(url, options = {}) {
       if (importedNames.has(key)) throw new Error('Duplicate imported skill name: ' + skill.folder);
       importedNames.add(key);
 
+      // Apply the same collision rules on case-sensitive and insensitive disks.
+      for (const root of [skillsDir,shelfDir]) {
+        if (existsSync(root) && readdirSync(root).some(name=>name.toLowerCase()===key)) {
+          throw new Error(`A skill or path named ${skill.folder} already exists in ${root}. Resolve the name conflict before importing.`);
+        }
+      }
+
       const target = join(targetRoot, skill.folder);
       if (pathState(target)) {
         throw new Error(`${target} already exists. Resolve the name conflict before importing.`);
