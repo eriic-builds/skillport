@@ -25,6 +25,7 @@ import { profileTarget, updateProfile, shellQuote, powershellQuote } from './pro
 import { removeOwnedLink, ownedLink } from './managed-links.mjs';
 import { selectClients, clientLinks, preflightLinks } from './clients.mjs';
 import { librarySettings } from './library.mjs';
+import { moveBatch } from './transaction.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const settings = librarySettings({args:process.argv.slice(2), runtime:resolve(scriptDir,'..'), home:homedir()});
@@ -1217,11 +1218,15 @@ function shelveSkills(names) {
     }
   }
 
+  const priorLinks = [];
+  for (const name of names) for (const client of ['.codex','.agents']) {
+    const path = join(home,client,'skills',name);
+    if (ownedLink(path,skillsDir)) priorLinks.push([path,resolve(dirname(path),readlinkSync(path))]);
+  }
+  moveBatch(names.map(name=>[skillMap.get(name).directory,join(shelfDir,name)]),
+    ()=>{ for(const name of names) removeLinks(name); },
+    ()=>{ for(const [path,target] of priorLinks) if(!pathState(path)) ensureLink(path,target); });
   for (const name of names) {
-    const skill = skillMap.get(name);
-    const shelfTarget = join(shelfDir, name);
-    renameSync(skill.directory, shelfTarget);
-    removeLinks(name);
     console.log(`Shelved ${name} — stored in shelf/, no longer loads.`);
     console.log(`Bring it back with:  skills unshelve ${name}`);
   }
@@ -1270,11 +1275,13 @@ function unshelveSkills(names) {
     }
   }
 
-  for (const name of names) {
-    renameSync(shelvedMap.get(name).directory, join(skillsDir, name));
-  }
-
-  linkAll();
+  const incoming = names.map(name=>({folder:name,directory:join(skillsDir,name)}));
+  const desired = clientLinks(selectedClients(),home,skillsDir,[...skills,...incoming]);
+  preflightLinks(desired);
+  const newLinks = desired.filter(([path])=>!pathState(path));
+  moveBatch(names.map(name=>[shelvedMap.get(name).directory,join(skillsDir,name)]),
+    ()=>linkAll(),
+    ()=>{ for(const [path] of newLinks) removeOwnedLink(path,skillsDir); });
 }
 
 function newSkill(name) {
