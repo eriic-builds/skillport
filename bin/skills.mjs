@@ -745,6 +745,20 @@ function linkAll({ dryRun = false } = {}) {
   const skills = discoverSkills();
   const links = clientLinks(clients, home, skillsDir, skills);
   preflightLinks(links);
+  if (clients.includes('codex')) {
+    const active = new Set(skills.map(skill => skill.folder));
+    for (const client of ['.codex','.agents']) {
+      const directory = join(home,client,'skills');
+      if (!existsSync(directory)) continue;
+      for (const entry of readdirSync(directory)) {
+        if (entry === '.system' || active.has(entry)) continue;
+        const path = join(directory,entry);
+        if (!ownedLink(path,skillsDir)) continue;
+        if (dryRun) console.log('Would remove obsolete managed link: ' + path);
+        else removeOwnedLink(path,skillsDir);
+      }
+    }
+  }
   console.log(`Selected clients: ${clients.join(', ') || 'none'}`);
   for (const [path, target] of links) {
     if (dryRun) console.log(`Would link ${path} -> ${target}`);
@@ -1381,6 +1395,8 @@ function syncRepo(message) {
       'Git could not pull the remote changes. Any rebase started by this command was safely aborted. Run "git status", fix the reported problem, then run "skills sync" again.',
     );
   }
+  // Reconcile after receiving remote skill changes, even if pushing fails.
+  linkAll();
   run("git", ["push"]);
 }
 

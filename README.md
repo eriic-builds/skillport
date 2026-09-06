@@ -11,6 +11,12 @@ The source of truth is `skills/`. Each skill is a directory containing a
 
 ## Quick bootstrap for a fresh machine
 
+For a small installation without this repository's website or Git history, see
+[the standalone runtime instructions](INSTALL.md#minimal-standalone-library).
+The CLI has no third-party runtime dependencies. Use `--clients none`, `auto`,
+or a comma-separated list to control which integrations are configured.
+The full-clone workflow below is intended for a Git-backed personal library.
+
 If this library is not installed on this machine yet, the shortest path is:
 
 ```sh

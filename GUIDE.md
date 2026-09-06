@@ -494,3 +494,23 @@ finds, confirms, and activates matching ones for you.
 - You must restart your AI client after unshelving a skill for it to load.
 - Bulk imports (`skills import --all`) land on the shelf, so they don't flood an existing workflow.
 - Name collisions (the same skill in both `skills/` and `shelf/`) are an error; `doctor` catches them.
+# Runtime and library modes
+
+Use `--library <path>` to keep the CLI separate from a writable skill library.
+Standalone installation starts with an empty skills directory and does not
+require Git. Git-backed libraries retain import commits and `skills sync`.
+Client selection is stored locally in `.skillport/local.json`; do not synchronize
+that machine-specific configuration. Use `link --clients none`, `auto`, or a
+comma-separated selection to change it. Dry-run does not create directories.
+
+Both `doctor` and `doctor --json` run the same selected-client checks and exit
+nonzero on failure. JSON stdout is a single parseable object.
+
+After a successful sync pull, Skillport reconciles active per-skill links,
+including remote additions and shelving changes. Restart clients to refresh
+their cached skill inventory. Project copies, Cowork marketplace versions, and
+manually uploaded Chat skills require separate updates.
+
+Reviewed shelf imports can activate while their content and review rules remain
+unchanged. Editing a skill invalidates that approval. Review checks identify
+patterns worth inspecting; they do not prove arbitrary imported code safe.
