@@ -1297,7 +1297,7 @@ function unshelveSkills(names) {
   const newLinks = desired.filter(([path])=>!pathState(path));
   moveBatch(names.map(name=>[shelvedMap.get(name).directory,join(skillsDir,name)]),
     ()=>linkAll(),
-    ()=>{ for(const [path] of newLinks) removeOwnedLink(path,skillsDir); });
+    ()=>{ for(const [path] of newLinks) removeOwnedLink(path,skillsDir,{includeRoot:true}); });
 }
 
 function newSkill(name) {
