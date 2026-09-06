@@ -625,24 +625,29 @@ function libraryPathVariants() {
 }
 
 function copilotWrapperInstalled() {
-  const candidates = isWindows
+  const defaults = isWindows
     ? [
         join("Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1"),
         join("Documents", "WindowsPowerShell", "Microsoft.PowerShell_profile.ps1"),
       ]
     : [".zshrc", ".bashrc", ".bash_profile", ".profile"];
-  const variants = libraryPathVariants();
-  for (const file of candidates) {
-    const path = join(home, file);
+  const configPath=join(repoRoot,'.skillport','local.json');
+  const saved=existsSync(configPath) ? JSON.parse(readFileSync(configPath,'utf8')) : {};
+  const index=process.argv.indexOf('--profile');
+  const actual=profileTarget({home,windows:isWindows,explicit:index>=0 ? resolve(process.argv[index+1]) : saved.profile});
+  const candidates=[actual,...defaults.map(file=>join(home,file))].filter(Boolean);
+  const variants = [...libraryPathVariants(),shellQuote(repoRoot),powershellQuote(repoRoot)];
+  for (const path of candidates) {
     if (!existsSync(path)) continue;
-    const active = readFileSync(path, "utf8")
+    const bytes=readFileSync(path);
+    const active = bytes.toString(bytes[0]===0xff && bytes[1]===0xfe ? 'utf16le' : 'utf8')
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith("#"));
     const matched = active.some(
       (line) => line.includes("--add-dir") && variants.some((variant) => line.includes(variant)),
     );
-    if (matched) return file;
+    if (matched) return path;
   }
   return null;
 }
@@ -777,7 +782,9 @@ function linkAll({ dryRun = false } = {}) {
   }
   if (!dryRun) {
     mkdirSync(join(repoRoot, '.skillport'), { recursive: true });
-    writeFileSync(join(repoRoot, '.skillport', 'local.json'), JSON.stringify({ clients }, null, 2) + '\n');
+    const configPath=join(repoRoot,'.skillport','local.json');
+    const previous=existsSync(configPath) ? JSON.parse(readFileSync(configPath,'utf8')) : {};
+    writeFileSync(configPath, JSON.stringify({ ...previous, clients }, null, 2) + '\n');
     console.log('Restart selected AI clients to refresh their skill inventory.');
   }
 }
@@ -1057,6 +1064,12 @@ function ensureShellSetup(options = {}) {
     return { changed: false };
   }
   const changed = updateProfile(profilePath, lines, options.dryRun);
+  if (!options.dryRun) {
+    const configPath=join(repoRoot,'.skillport','local.json');
+    const previous=existsSync(configPath) ? JSON.parse(readFileSync(configPath,'utf8')) : {};
+    mkdirSync(dirname(configPath),{recursive:true});
+    writeJson(configPath,{...previous,profile:profilePath});
+  }
   console.log(`${options.dryRun ? 'Would configure' : changed ? 'Updated' : 'Already configured'} shell profile: ${profilePath}`);
   console.log(`Open a new shell to use skills, or load ${quote(profilePath)} in your current shell.`);
   return { changed, path: profilePath };

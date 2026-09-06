@@ -56,3 +56,12 @@ test('starter installation preserves existing user skill', t=>{
   assert.match(result.stderr,/Refusing to overwrite/);
   assert.equal(readFileSync(join(path,'SKILL.md'),'utf8'),before);
 });
+test('custom profile location survives later link reconciliation', t=>{
+  const s=sandbox(t), profile=join(s.home,"redirected space's",'profile');
+  let result=s.run('install','--clients','none','--profile',profile,'--yes');
+  assert.equal(result.status,0,result.stderr);
+  const config=join(s.repo,'.skillport','local.json');
+  assert.equal(JSON.parse(readFileSync(config)).profile,profile);
+  result=s.run('link');assert.equal(result.status,0,result.stderr);
+  assert.equal(JSON.parse(readFileSync(config)).profile,profile);
+});
