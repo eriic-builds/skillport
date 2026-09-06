@@ -11,8 +11,9 @@ export function sandbox(t) {
   mkdirSync(repo); mkdirSync(home);
   cpSync(fileURLToPath(new URL('../../bin', import.meta.url)), join(repo, 'bin'), {recursive:true});
   mkdirSync(join(repo,'skills')); mkdirSync(join(repo,'shelf'));
+  const env = {...process.env,HOME:home,USERPROFILE:home,SHELL:'/bin/zsh',ZDOTDIR:home,SKILLPORT_POWERSHELL_PROFILE:join(home,'profile.ps1')};
   return {
-    root, repo, home,
+    root, repo, home, env,
     skill(name, shelved = false, content = '') {
       const path = join(repo, shelved ? 'shelf' : 'skills', name);
       mkdirSync(path, {recursive:true});
@@ -22,7 +23,7 @@ export function sandbox(t) {
     run(...args) {
       return spawnSync(process.execPath, [join(repo,'bin','skills.mjs'), ...args], {
         cwd:repo, timeout:15000, encoding:'utf8',
-        env:{...process.env,HOME:home,USERPROFILE:home,SHELL:'/bin/zsh',ZDOTDIR:home,SKILLPORT_POWERSHELL_PROFILE:join(home,'profile.ps1')},
+        env,
       });
     },
   };

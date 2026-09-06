@@ -265,6 +265,7 @@ function auditSkillForSecurity(root) {
   const fileFingerprints = [];
 
   for (const filePath of fileEntries) {
+    if (relative(root, filePath) === '.source.json') continue;
     let text = "";
     try {
       text = readFileSync(filePath, "utf8");
@@ -304,6 +305,22 @@ function buildReviewToken({ source, commit, selection, rulesetVersion, files }) 
     ...files.map(({ path, hash }) => `${path}:${hash}`),
   ].join("\n");
   return sha256(payload);
+}
+
+function skillContentHash(root) {
+  const entries = [];
+  function walk(directory) {
+    for (const entry of readdirSync(directory, {withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))) {
+      const path = join(directory,entry.name);
+      const rel = relative(root,path).split(sep).join('/');
+      if (rel === '.source.json') continue;
+      if (entry.isSymbolicLink()) throw new Error('Skill contains a symbolic link: ' + rel);
+      if (entry.isDirectory()) walk(path);
+      else entries.push([rel,sha256(readFileSync(path))]);
+    }
+  }
+  walk(root);
+  return sha256(JSON.stringify(entries));
 }
 
 function discoverSkills(root = skillsDir) {
@@ -1217,7 +1234,10 @@ function unshelveSkills(names) {
       );
     }
     const security = auditSkillForSecurity(skill.directory);
-    if (security.findings.length) {
+    const sourcePath = join(skill.directory,'.source.json');
+    const approval = existsSync(sourcePath) ? readJson(sourcePath) : null;
+    const approved = approval?.overrideAccepted === true && approval.rulesetVersion === securityRulesetVersion && approval.contentHash === skillContentHash(skill.directory);
+    if (security.findings.length && !approved) {
       console.error(`Cannot unshelve "${name}" because the skill fails the import security review:`);
       for (const finding of security.findings) {
         console.error(`- [${finding.id}] ${finding.file}: ${finding.message}`);
@@ -1560,7 +1580,8 @@ async function importSkill(url, options = {}) {
     throw new Error("Import currently accepts HTTPS GitHub repository URLs only.");
   }
 
-  const tempRoot = mkdtempSync(join(tmpdir(), "global-skills-import-"));
+  mkdirSync(repoRoot, {recursive:true});
+  const tempRoot = mkdtempSync(join(repoRoot, ".skillport-import-"));
   const cloneDir = join(tempRoot, "repo");
   const installed = [];
   let importCommitted = false;
@@ -1568,9 +1589,10 @@ async function importSkill(url, options = {}) {
   const isShelfImport = options.all;
   const targetRoot = isShelfImport ? shelfDir : skillsDir;
   const reviewedToken = options.reviewed ?? null;
+  const gitBacked = existsSync(join(repoRoot,'.git'));
 
   try {
-    const stagedGit = run("git", ["diff", "--cached", "--quiet"], { allowFailure: true });
+    const stagedGit = gitBacked ? run("git", ["diff", "--cached", "--quiet"], { allowFailure: true }) : {status:0};
     if (stagedGit.status !== 0) {
       throw new Error(
         'Git already has staged changes. Commit or unstage them before running "skills import".',
@@ -1583,6 +1605,7 @@ async function importSkill(url, options = {}) {
       ? candidates
       : [await chooseSkill(candidates, options.only)];
     const sha = capture("git", ["rev-parse", "HEAD"], { cwd: cloneDir });
+    const importedNames = new Set();
 
     for (const selected of chosen) {
       const parsed = parseFrontmatter(join(selected, "SKILL.md"));
@@ -1594,6 +1617,9 @@ async function importSkill(url, options = {}) {
       };
       const result = validateSkill(skill, { checkReferences: false });
       if (result.errors.length) throw new Error(`${skill.folder}: ${result.errors.join("; ")}`);
+      const key = skill.folder.toLowerCase();
+      if (importedNames.has(key)) throw new Error('Duplicate imported skill name: ' + skill.folder);
+      importedNames.add(key);
 
       const target = join(targetRoot, skill.folder);
       if (pathState(target)) {
@@ -1647,7 +1673,7 @@ async function importSkill(url, options = {}) {
       commit: sha,
       selection: staged.map((entry) => entry.folder),
       rulesetVersion: securityRulesetVersion,
-      files: staged.flatMap((entry) => entry.audit.files),
+      files: staged.flatMap((entry) => entry.audit.files.map(file=>({...file,path:entry.folder+'/'+file.path}))),
     });
 
     if (aggregateFindings.length) {
@@ -1669,6 +1695,7 @@ async function importSkill(url, options = {}) {
       throw new Error("Review token does not match the current import content.");
     }
 
+    mkdirSync(targetRoot, {recursive:true});
     for (const entry of staged) {
       const sourceState = pathState(entry.stage);
       if (!sourceState) continue;
@@ -1679,6 +1706,8 @@ async function importSkill(url, options = {}) {
         rulesetVersion: securityRulesetVersion,
         reviewToken: entry.reviewToken,
         reviewedRuleIds: entry.audit.ruleIds,
+        overrideAccepted: reviewedToken === aggregateToken,
+        contentHash: skillContentHash(entry.stage),
       };
       writeFileSync(
         join(entry.stage, ".source.json"),
@@ -1698,6 +1727,7 @@ async function importSkill(url, options = {}) {
       installed.length === 1
         ? `feat: import${location} ${installed[0].folder}`
         : `feat: import${location} ${installed.length} skills from ${url}`;
+    if (gitBacked) {
     run("git", ["add", ...targetPaths]);
     run("git", [
       "commit",
@@ -1708,6 +1738,7 @@ async function importSkill(url, options = {}) {
       "--",
       ...targetPaths,
     ]);
+    }
     importCommitted = true;
     // Link only if not a shelf import; shelf imports don't need wiring.
     // If later unshelved, linkAll() will wire them.
@@ -1715,14 +1746,14 @@ async function importSkill(url, options = {}) {
       linkAll();
     }
     const msg = isShelfImport
-      ? `Import committed to shelf/. Run "skills unshelve <name>" to activate, then restart your AI clients.`
-      : `Import committed locally. Run "skills sync" to publish it.`;
+      ? `Import saved to shelf/. Run "skills unshelve <name>" to activate, then restart your AI clients.`
+      : `Import saved locally.${gitBacked ? ' Run skills sync to publish it.' : ''}`;
     console.log(msg);
   } catch (error) {
     if (importCommitted) {
-      throw new Error(`Import was committed and its files have been retained. Client setup failed: ${error.message}. Resolve the client error, then run skills link.`);
+      throw new Error(`Import was saved and its files have been retained. Client setup failed: ${error.message}. Resolve the client error, then run skills link.`);
     }
-    if (installed.length) {
+    if (gitBacked && installed.length) {
       const paths = installed.map(entry => relative(repoRoot, entry.target));
       const unstage = run('git', ['reset', '--', ...paths], { capture: true, allowFailure: true });
       if (unstage.status !== 0) throw new Error(`Import failed: ${error.message}. Could not unstage imported paths; files were retained for recovery.`);
