@@ -41,6 +41,9 @@ may require a restart; shelving does not erase content from an ongoing chat or
 remove independent project-local copies.
 Git is needed for imports and for Git-backed sync, but not for standalone
 listing, linking, shelving, or health checks. GitHub CLI is optional.
+`new` creates only `SKILL.md` by default. Add `--use-cases` to `new` or `import`
+when you want an extra HTML usage guide; supporting assets from imported skills
+are preserved regardless of extension.
 
 ## Git-backed library
 

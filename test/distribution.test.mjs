@@ -15,6 +15,9 @@ test('standalone install initializes an empty separate library', t => {
   assert.equal(JSON.parse(readFileSync(join(s.home,'.skillport','config.json'))).library,library);
   assert.equal(s.run('new','example','--library',library).status,0);
   assert.ok(existsSync(join(library,'skills','example','SKILL.md')));
+  assert.deepEqual(readdirSync(join(library,'skills','example')),['SKILL.md']);
+  assert.equal(s.run('new','documented','--use-cases','--library',library).status,0);
+  assert.ok(existsSync(join(library,'skills','documented','USE_CASES.html')));
   assert.equal(existsSync(join(s.repo,'skills','example')),false);
   const doctor=s.run('doctor','--json','--library',library);
   assert.equal(doctor.status,0,doctor.stderr);

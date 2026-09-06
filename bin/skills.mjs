@@ -1191,7 +1191,8 @@ function collectDoctorState() {
       if (names.has(skill.folder.toLowerCase())) errors.push('Skill exists in active library and shelf: ' + skill.folder);
     }
     if (existsSync(join(repoRoot, '.git'))) {
-      pluginMetadataState(errors);
+      if (existsSync(pluginManifestPath)) pluginMetadataState(errors);
+      else info.push('No marketplace metadata: filesystem-only Git library.');
       gitState(errors);
     } else {
       info.push('Standalone library: Git sync and plugin identity checks skipped.');
@@ -1300,7 +1301,7 @@ function unshelveSkills(names) {
     ()=>{ for(const [path] of newLinks) removeOwnedLink(path,skillsDir,{includeRoot:true}); });
 }
 
-function newSkill(name) {
+function newSkill(name, {useCases=false} = {}) {
   assertSimpleName(name);
   if (builtInNames.has(name)) {
     throw new Error(`"${name}" is reserved by Codex and cannot be used as a skill name.`);
@@ -1316,10 +1317,10 @@ function newSkill(name) {
     join(directory, "SKILL.md"),
     `---\nname: ${name}\ndescription: ${description}\n---\n\n# ${name}\n\nAdd the instructions for this skill here.\n`,
   );
-  writeFileSync(join(directory, useCaseFile), renderUseCases(name, description, false));
-  console.log(`Created ${name}/SKILL.md and ${name}/${useCaseFile}.`);
+  if (useCases) writeFileSync(join(directory, useCaseFile), renderUseCases(name, description, false));
+  console.log(`Created ${name}/SKILL.md${useCases ? ` and ${name}/${useCaseFile}` : ''}.`);
   console.log(
-    `Edit the description and instructions, replace the starter prompts, then run "skills doctor".`,
+    `Edit the description and instructions, then run "skills doctor". Generate optional documentation with "skills usecases ${name}".`,
   );
 }
 
@@ -1389,7 +1390,7 @@ function syncRepo(message) {
   const versionBumpNeeded =
     (workingSkillChanges && !workingManifestChanges) ||
     (committedSkillChanges && !committedManifestChanges && !workingManifestChanges);
-  if (versionBumpNeeded) {
+  if (versionBumpNeeded && existsSync(pluginManifestPath)) {
     const manifest = JSON.parse(readFileSync(pluginManifestPath, "utf8"));
     const match = String(manifest.version).match(/^(\d+)\.(\d+)\.(\d+)$/);
     if (!match) {
@@ -2052,7 +2053,7 @@ Options:
   --all                With "import", take every skill in the repository
   --reviewed <token>   Re-approve an import after reviewing the prior security findings
   --commit <sha>       With import, fetch an exact full 40-character commit SHA
-  --use-cases          With import, generate optional USE_CASES.html documentation
+  --use-cases          With import or new, generate optional USE_CASES.html documentation
   --dry-run            Preview shell and install changes without writing them
   --yes                Confirm non-interactive install actions`);
 }
@@ -2069,7 +2070,7 @@ async function main() {
         break;
       case "new":
         if (args.length !== 1) throw new Error('new requires exactly one skill name');
-        newSkill(args[0]);
+        newSkill(args[0],{useCases:args.includes('--use-cases')});
         break;
       case "shelf":
         listShelf();
